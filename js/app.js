@@ -560,8 +560,7 @@
       }
       case 'exit':
         return '<div class="field">' + propInput('Template ({code} = exit status)', 'tpl', p.tpl, 'spellcheck="false"') +
-          '<label class="check" style="margin-top:8px"><input type="checkbox" data-propcheck="hideOk"' + (p.hideOk ? ' checked' : '') + '> Only show when the exit code is non-zero</label></div>' +
-          colorField('Failure text color', 'failFg', p.failFg, true) + colorField('Failure background', 'failBg', p.failBg, true);
+          '<label class="check" style="margin-top:8px"><input type="checkbox" data-propcheck="hideOk"' + (p.hideOk ? ' checked' : '') + '> Only show when the exit code is non-zero</label></div>';
       case 'git': case 'venv':
         return '<div class="field two">' + propInput('Before', 'pre', p.pre) + propInput('After', 'suf', p.suf) + '</div>';
       case 'env':
@@ -603,6 +602,10 @@
       const c0 = colorable[0];
       html += colorField(first.field === 'exit' && single ? 'Text color (success)' : 'Text color', 'fg', c0.fg, true);
       html += colorField(first.field === 'exit' && single ? 'Background (success)' : 'Background', 'bg', c0.bg, true);
+      // Exit code: success colors first, then the failure colors.
+      if (single && first.field === 'exit') {
+        html += colorField('Text color (failure)', 'failFg', first.props.failFg, true) + colorField('Background (failure)', 'failBg', first.props.failBg, true);
+      }
       const styles = [['bold', '<b>B</b>', 'Bold'], ['italic', '<i>I</i>', 'Italic'], ['underline', '<u>U</u>', 'Underline'], ['strike', '<s>S</s>', 'Strikethrough'],
         ['dim', 'Dim', 'Dim / faint'], ['blink', 'Blink', 'Blink'], ['reverse', 'Rev', 'Reverse video']];
       html += '<div class="field"><span class="lbl">Style</span><div class="styles">' + styles.map((s) => {
