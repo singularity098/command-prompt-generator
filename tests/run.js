@@ -96,6 +96,14 @@ const env = Object.assign({}, process.env, {
 delete env.SSH_CONNECTION; delete env.SSH_TTY;
 
 const COLUMNS = 100;
+/* PowerShell prefers the console's real width over $env:COLUMNS, so ask it what it will use. */
+function pwshColumns() {
+  const r = spawnSync(PWSH, ['-NoProfile', '-NonInteractive', '-Command',
+    '$c = 0; try { $c = $Host.UI.RawUI.WindowSize.Width } catch { }; if ($c -le 0 -and $env:COLUMNS) { $c = [int]$env:COLUMNS }; if ($c -le 0) { $c = 80 }; $c'],
+    { env: Object.assign({ COLUMNS: String(COLUMNS) }, process.env), encoding: 'utf8' });
+  return parseInt(r.stdout, 10) || COLUMNS;
+}
+const WIDTH = { bash: COLUMNS, pwsh: has(PWSH) ? pwshColumns() : COLUMNS };
 const GLUE = /\x1b7\x1b\[(\d+)G([\s\S]*?)\x1b8/;
 
 /*
@@ -180,7 +188,7 @@ if (shells.length) {
             assert.strictEqual(JSON.stringify(out[sh].left), JSON.stringify(ref.left), what + ' (left)');
             assert.strictEqual(JSON.stringify(out[sh].right), JSON.stringify(ref.right), what + ' (right)');
             if (out[sh].col != null && ref.right) {
-              assert.strictEqual(out[sh].col, COLUMNS - Array.from(plain(ref.right)).length + 1, sh + ' right prompt column');
+              assert.strictEqual(out[sh].col, WIDTH[sh] - Array.from(plain(ref.right)).length + 1, sh + ' right prompt column');
             }
           }
           assert.ok(ref.left.length > 0, 'empty prompt');
