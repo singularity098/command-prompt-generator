@@ -51,10 +51,11 @@
     },
     {
       name: 'Pure',
-      desc: 'Minimal two-line prompt by sindresorhus: path, branch, then ❯.',
+      desc: 'Minimal two-line prompt by sindresorhus: path, branch, slow-command time, then ❯.',
       build: function () {
         return [
           NL(), F('cwd', { fg: '#5fafff' }), F('git', { fg: '#6c6c6c' }, { pre: ' ', suf: '' }), F('gitDirty', { fg: '#d7afd7' }, { text: '*' }),
+          F('duration', { fg: '#d7af5f' }, { min: 5, style: 'seconds', pre: ' ', suf: '' }),
           NL(), X('❯', { fg: '#d75fd7' }, '#ff5f5f'), T(' ')
         ];
       }
@@ -92,12 +93,13 @@
     },
     {
       name: 'Starship Style',
-      desc: 'Directory, branch and venv, then a status-colored arrow.',
+      desc: 'Directory, branch, venv and command time, then a status-colored arrow.',
       build: function () {
         return [
           F('venv', { fg: '#facc15' }, { pre: '🐍 ', suf: ' ' }),
           F('cwd', { fg: '#22d3ee', bold: true }),
           F('git', { fg: '#c084fc', bold: true }, { pre: ' on ⎇ ', suf: '' }), F('gitDirty', { fg: '#f87171', bold: true }, { text: ' [!]' }),
+          F('duration', { fg: '#fbbf24', bold: true }, { min: 2, pre: ' took ', suf: '' }),
           F('exit', { fg: '#fbbf24' }, { tpl: ' ✘{code}', hideOk: true, failFg: '#f87171' }),
           NL(), X('❯', { fg: '#4ade80', bold: true }, '#f87171'), T(' ')
         ];
@@ -119,11 +121,13 @@
       desc: 'Rounded two-line frame in Nord frost colors.',
       build: function () {
         var frame = { fg: '#4c566a' };
-        return [
-          T('╭─ ', frame), F('user', { fg: '#88c0d0', bold: true }), T(' ', frame), F('cwd', { fg: '#81a1c1' }), F('git', { fg: '#a3be8c' }, { pre: '  ', suf: '' }),
-          T(' ', frame), F('time', { fg: '#4c566a' }, { fmt: '%H:%M' }),
-          NL(), T('╰─', frame), X('❯ ', { fg: '#8fbcbb' }, '#bf616a')
-        ];
+        return {
+          left: [
+            T('╭─ ', frame), F('user', { fg: '#88c0d0', bold: true }), T(' ', frame), F('cwd', { fg: '#81a1c1' }), F('git', { fg: '#a3be8c' }, { pre: '  ', suf: '' }),
+            NL(), T('╰─', frame), X('❯ ', { fg: '#8fbcbb' }, '#bf616a')
+          ],
+          right: [F('duration', { fg: '#ebcb8b' }, { min: 2, pre: '', suf: ' ' }), F('time', frame, { fmt: '%H:%M' })]
+        };
       }
     },
     {
@@ -137,6 +141,21 @@
           T('', { fg: '#b16286' }), F('time', c, { fmt: '%H:%M' }), T('', { fg: '#b16286' }),
           X(' ❯ ', { fg: '#ebdbb2' }, '#fb4934')
         ];
+      }
+    },
+    {
+      name: 'Two-Sided',
+      desc: 'Path and git on the left; status, duration and clock on the right.',
+      build: function () {
+        var d = { fg: '#6b7280' };
+        return {
+          left: [F('cwd', { fg: '#38bdf8', bold: true }), F('git', { fg: '#a78bfa' }, { pre: ' ', suf: '' }), F('gitDirty', { fg: '#f472b6' }, { text: '*' }), X(' ❯ ', { fg: '#34d399', bold: true }, '#f87171')],
+          right: [
+            F('exit', { fg: '#f87171' }, { tpl: '✘ {code} ', hideOk: true, failFg: '#f87171' }),
+            F('duration', { fg: '#fbbf24' }, { min: 1, pre: '', suf: ' ' }),
+            T('· ', d), F('time', d, { fmt: '%H:%M:%S' })
+          ]
+        };
       }
     },
     {

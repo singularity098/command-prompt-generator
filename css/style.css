@@ -246,6 +246,11 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
   font: 14px/1.5 var(--mono); white-space: pre-wrap; word-break: break-all; overflow-x: auto;
 }
 .term-body .out { opacity: .8; }
+.tl-last { display: flex; align-items: flex-end; column-gap: 2ch; }
+.tl-left { flex: 1 1 auto; min-width: 0; }
+.tl-right { flex: 0 0 auto; margin-left: auto; white-space: pre; }
+.side-tabs { margin-right: auto; margin-left: 12px; }
+.editor.right-side { border-style: dashed; border-color: color-mix(in srgb, var(--accent-2) 55%, var(--border-strong)); justify-content: flex-end; }
 .term-body .cursor { display: inline-block; width: .6em; background: var(--term-fg); animation: blink 1.1s steps(1) infinite; }
 .blink { animation: blink 1.1s steps(1) infinite; }
 /* CSS-drawn powerline separators: the glyph's color is the text color, the cell keeps the background. */

@@ -115,7 +115,7 @@
     home: '/home/alice', cwd: '/home/alice/code/prompt-generator',
     inGit: true, branch: 'main', dirty: true,
     venv: false, venvName: 'venv', ssh: false, root: false,
-    jobs: 1, history: 1042, tty: 'pts/0'
+    jobs: 1, history: 1042, tty: 'pts/0', duration: 4213
   };
   var SHELL_INFO = {
     bash: { name: 'bash', version: '5.2' },
@@ -169,6 +169,14 @@
         return String(el.props.tpl).split('{code}').join(String(s.status));
       }
     },
+    duration: {
+      label: 'Command duration', defaults: { min: 2, style: 'auto', pre: 'took ', suf: ' ' }, conditional: true,
+      desc: 'How long the last command ran. Hidden when it was quicker than the threshold.',
+      sample: function (s, el) {
+        var ms = s.duration || 0, min = Math.round((parseFloat(el.props.min) || 0) * 1000);
+        return ms >= min ? el.props.pre + fmtDuration(ms, el.props.style) + el.props.suf : '';
+      }
+    },
     jobs: { label: 'Background jobs', sample: function (s) { return String(s.jobs); } },
     history: { label: 'History number', sample: function (s) { return String(s.history); } },
     git: {
@@ -199,6 +207,17 @@
     }
   };
 
+  /* Same formatting as the generated __pg_fmt_dur helpers. */
+  function fmtDuration(ms, style) {
+    ms = Math.max(0, Math.floor(ms));
+    var f = Math.floor;
+    if (style === 'seconds') return f(ms / 1000) + 's';
+    if (ms < 1000) return ms + 'ms';
+    if (ms < 60000) return f(ms / 1000) + '.' + f(ms % 1000 / 100) + 's';
+    if (ms < 3600000) return f(ms / 60000) + 'm ' + f(ms % 60000 / 1000) + 's';
+    return f(ms / 3600000) + 'h ' + f(ms % 3600000 / 60000) + 'm';
+  }
+
   /* Text the element shows in the preview for a given simulated environment. */
   function sampleText(el, sim) {
     if (el.kind === 'text') return el.text;
@@ -207,10 +226,11 @@
     return def ? def.sample(sim, el) : '';
   }
 
-  function sampleSim(shell, status) {
+  function sampleSim(shell, status, duration) {
     var s = Object.assign({}, DEFAULT_SIM);
     s.shell = shell || 'bash';
     s.status = status || 0;
+    if (duration != null) s.duration = duration;
     s.now = new Date();
     return s;
   }
@@ -253,6 +273,7 @@
       name: 'Status', items: [
         { label: 'Exit code', make: F('exit') },
         { label: '✘ code (fail only)', make: F('exit', { tpl: '✘ {code} ', hideOk: true }) },
+        { label: 'Duration', make: F('duration'), hint: 'How long the last command took' },
         { label: 'Jobs', make: F('jobs') },
         { label: 'History #', make: F('history') }
       ]
@@ -293,6 +314,6 @@
     STYLE_KEYS: STYLE_KEYS, make: make, clone: clone, reid: reid, uid: uid,
     FIELDS: FIELDS, PALETTE: PALETTE, SYMBOLS: SYMBOLS, TIME_FORMATS: TIME_FORMATS,
     DEFAULT_SIM: DEFAULT_SIM, SHELL_INFO: SHELL_INFO,
-    strftime: strftime, sampleText: sampleText, sampleSim: sampleSim, tildePath: tildePath
+    strftime: strftime, fmtDuration: fmtDuration, sampleText: sampleText, sampleSim: sampleSim, tildePath: tildePath
   };
 })(typeof window !== 'undefined' ? (window.PG = window.PG || {}) : (globalThis.PG = globalThis.PG || {}));

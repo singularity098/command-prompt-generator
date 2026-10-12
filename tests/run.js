@@ -95,26 +95,47 @@ const env = Object.assign({}, process.env, {
 });
 delete env.SSH_CONNECTION; delete env.SSH_TTY;
 
-function render(shell, code, status) {
-  const file = path.join(tmp, 'prompt.' + shell);
+const COLUMNS = 100;
+const GLUE = /\x1b7\x1b\[(\d+)G([\s\S]*?)\x1b8/;
+
+/*
+ * Source the generated code in a real shell and render it for a given exit status and command
+ * duration (ms). Returns { left, right, col } where col is the column bash/PowerShell move the
+ * cursor to before printing the right prompt (they emulate it; zsh and fish have it built in).
+ */
+function render(shell, code, status, dur) {
+  dur = dur || 0;
+  const file = path.join(tmp, 'prompt.' + shell + (shell === 'pwsh' ? '.ps1' : ''));
   fs.writeFileSync(file, code);
-  let script, args;
-  if (shell === 'bash') { args = ['--norc', '--noprofile', '-c', 'source "$1"; __pg_status=' + status + '; printf "%s" "${PS1@P}"', 'x', file]; }
-  else if (shell === 'zsh') { args = ['-f', '-c', 'source "$1"; __pg_status=' + status + '; print -rnP -- "$PROMPT"', 'x', file]; }
-  else if (shell === 'fish') { args = ['--no-config', '-c', 'source $argv[1]; function __f; return ' + status + '; end; __f; fish_prompt', file]; }
-  else {
-    fs.renameSync(file, file + '.ps1');
-    args = ['-NoProfile', '-NonInteractive', '-Command', '. "' + file + '.ps1"; bash -c "exit ' + status + '"; [Console]::Out.Write((prompt))'];
+  let args;
+  if (shell === 'bash') {
+    args = ['--norc', '--noprofile', '-c', 'source "$1"; __pg_status=' + status + '; __pg_dur=' + dur + '; printf "%s" "${PS1@P}"', 'x', file];
+  } else if (shell === 'zsh') {
+    args = ['-f', '-c', 'source "$1"; __pg_status=' + status + '; __pg_dur=' + dur + '; print -rnP -- "$PROMPT"; printf "\\0"; print -rnP -- "$RPROMPT"', 'x', file];
+  } else if (shell === 'fish') {
+    args = ['--no-config', '-c', 'source $argv[1]; set CMD_DURATION ' + dur + '; function __f; return ' + status + '; end; __f; fish_prompt; printf "\\0"; __f; fish_right_prompt', file];
+  } else {
+    const hist = dur ? '$t = [datetime]::Now; Add-History -InputObject ([pscustomobject]@{ CommandLine = "x"; ExecutionStatus = "Completed"; StartExecutionTime = $t.AddMilliseconds(-' + dur + '); EndExecutionTime = $t }); ' : '';
+    args = ['-NoProfile', '-NonInteractive', '-Command', '. "' + file + '"; ' + hist + 'bash -c "exit ' + status + '"; [Console]::Out.Write((prompt))'];
   }
-  const r = spawnSync(shell === 'pwsh' ? PWSH : shell, args, { cwd: repo, env, encoding: 'utf8' });
+  const r = spawnSync(shell === 'pwsh' ? PWSH : shell, args, { cwd: repo, env: Object.assign({ COLUMNS: String(COLUMNS) }, env), encoding: 'utf8' });
   if (r.status !== 0 && r.stderr) throw new Error(shell + ' failed: ' + r.stderr);
   if (r.stderr) throw new Error(shell + ' stderr: ' + r.stderr);
   // bash leaves \001/\002 around non-printing sequences; zsh's %{ %} vanish. Normalize.
-  return r.stdout.replace(/[\x01\x02]/g, '');
+  let out = r.stdout.replace(/[\x01\x02]/g, '');
+  if (shell === 'zsh' || shell === 'fish') {
+    const i = out.indexOf('\0');
+    return { left: out.slice(0, i), right: out.slice(i + 1), col: null };
+  }
+  const m = out.match(GLUE);
+  return { left: out.replace(GLUE, ''), right: m ? m[2] : '', col: m ? +m[1] : null };
 }
 
+/* Presets may return a bare list (left only) or { left, right }. */
+function parts(built) { return Array.isArray(built) ? { left: built, right: [] } : { left: built.left, right: built.right || [] }; }
+
 /* Times change between shell runs, so pin every time field to the year. */
-function stable(els) { return els.map((e) => { const c = JSON.parse(JSON.stringify(e)); if (c.field === 'time') c.props.fmt = '%Y'; return c; }); }
+function stable(els) { return (els || []).map((e) => { const c = JSON.parse(JSON.stringify(e)); if (c.field === 'time') c.props.fmt = '%Y'; return c; }); }
 
 const stress = [
   M.make('text', { text: "q'u\"o$HOME`id`\\n%{x}%% ", fg: '#ff0000', bold: true, italic: true }),
@@ -134,26 +155,59 @@ const stress = [
   M.make('field', { field: 'jobs' }), M.make('field', { field: 'promptChar', blink: true }), M.make('text', { text: ' ' })
 ];
 
-const cases = [{ name: 'stress prompt', els: stress }].concat(PG.presets.map((p) => ({ name: 'preset: ' + p.name, els: stable(p.build()) })));
+const stressRight = [
+  M.make('field', { field: 'exit', fg: '#00ff00', props: { tpl: '✘ {code} ', hideOk: true, failFg: '#ff0000' } }),
+  M.make('field', { field: 'duration', fg: '#ffff00', props: { min: 2, pre: "took '%", suf: '$ ' } }),
+  M.make('field', { field: 'git', props: { pre: '⎇ ', suf: ' ' } }),
+  M.make('text', { text: '%$`\\', italic: true }), M.make('field', { field: 'time', props: { fmt: '%Y' } })
+];
+const cases = [{ name: 'stress prompt', left: stress, right: stressRight }].concat(PG.presets.map((p) => {
+  const b = parts(p.build());
+  return { name: 'preset: ' + p.name, left: stable(b.left), right: stable(b.right) };
+}));
+const plain = (str) => str.replace(/\x1b\[[0-9;]*m/g, '');
 if (shells.length) {
   for (const c of cases) {
     for (const mode of ['truecolor', '256', '16']) {
       if (mode !== 'truecolor' && c.name !== 'stress prompt') continue;
       test(c.name + ' [' + mode + '] renders identically in ' + shells.join(', '), () => {
-        for (const status of [0, 3]) {
+        for (const [status, dur] of [[0, 0], [3, 4213]]) {
           const out = {};
-          for (const sh of shells) out[sh] = render(sh, PG.gen.generate(sh, c.els, mode), status);
+          for (const sh of shells) out[sh] = render(sh, PG.gen.generate(sh, c.left, mode, c.right), status, dur);
           const ref = out[shells[0]];
-          for (const sh of shells) assert.strictEqual(JSON.stringify(out[sh]), JSON.stringify(ref), 'status ' + status + ': ' + sh + ' differs from ' + shells[0]);
-          assert.ok(ref.length > 0, 'empty prompt');
+          for (const sh of shells) {
+            const what = 'status ' + status + ', ' + dur + 'ms: ' + sh + ' differs from ' + shells[0];
+            assert.strictEqual(JSON.stringify(out[sh].left), JSON.stringify(ref.left), what + ' (left)');
+            assert.strictEqual(JSON.stringify(out[sh].right), JSON.stringify(ref.right), what + ' (right)');
+            if (out[sh].col != null && ref.right) {
+              assert.strictEqual(out[sh].col, COLUMNS - Array.from(plain(ref.right)).length + 1, sh + ' right prompt column');
+            }
+          }
+          assert.ok(ref.left.length > 0, 'empty prompt');
+          if (c.right.length) assert.ok(ref.right.length > 0, 'empty right prompt');
         }
       });
     }
   }
+  test('command duration formatting matches the preview in every shell', () => {
+    const els = [M.make('field', { field: 'duration', props: { min: 0, pre: '', suf: '' } }), M.make('text', { text: '|' }),
+      M.make('field', { field: 'duration', props: { min: 0, style: 'seconds', pre: '', suf: '' } })];
+    for (const ms of [5, 999, 4213, 59999, 65400, 3725000]) {
+      const want = M.fmtDuration(ms, 'auto') + '|' + M.fmtDuration(ms, 'seconds');
+      for (const sh of shells) assert.strictEqual(plain(render(sh, PG.gen.generate(sh, els), 0, ms).left), want, sh + ' @ ' + ms + 'ms');
+    }
+  });
+  test('duration below the threshold is hidden', () => {
+    const els = [M.make('text', { text: '[' }), M.make('field', { field: 'duration', props: { min: 5, pre: 'took ', suf: '' } }), M.make('text', { text: ']' })];
+    for (const sh of shells) {
+      assert.strictEqual(plain(render(sh, PG.gen.generate(sh, els), 0, 4999).left), '[]', sh);
+      assert.strictEqual(plain(render(sh, PG.gen.generate(sh, els), 0, 5000).left), '[took 5.0s]', sh);
+    }
+  });
   test('stress prompt shows the expected text (bash)', () => {
     const plain = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
-    const ok = plain(render(shells[0], PG.gen.generate(shells[0], stress, 'truecolor'), 0));
-    const bad = plain(render(shells[0], PG.gen.generate(shells[0], stress, 'truecolor'), 3));
+    const ok = plain(render(shells[0], PG.gen.generate(shells[0], stress, 'truecolor'), 0).left);
+    const bad = plain(render(shells[0], PG.gen.generate(shells[0], stress, 'truecolor'), 3).left);
     assert.ok(ok.startsWith("q'u\"o$HOME`id`\\n%{x}%% " + os.userInfo().username + '@'), ok);
     assert.ok(ok.includes("~/work/my repo/project"), ok);
     assert.ok(ok.includes(" ('$xfeature/x`) *%[proj]<v$1`x`>a%sb"), ok);
@@ -164,15 +218,15 @@ if (shells.length) {
   test('exit code uses failure colors only on non-zero status', () => {
     const els = [M.make('field', { field: 'exit', fg: '#00ff00', props: { tpl: '{code}', failFg: '#ff0000' } })];
     for (const sh of shells) {
-      assert.ok(render(sh, PG.gen.generate(sh, els), 0).includes('38;2;0;255;0m0'), sh + ' success');
-      assert.ok(render(sh, PG.gen.generate(sh, els), 1).includes('38;2;255;0;0m1'), sh + ' failure');
+      assert.ok(render(sh, PG.gen.generate(sh, els), 0).left.includes('38;2;0;255;0m0'), sh + ' success');
+      assert.ok(render(sh, PG.gen.generate(sh, els), 1).left.includes('38;2;255;0;0m1'), sh + ' failure');
     }
   });
 }
 
 test('PowerShell output is well-formed', () => {
   for (const c of cases) {
-    const code = PG.gen.generate('pwsh', c.els);
+    const code = PG.gen.generate('pwsh', c.left, 'truecolor', c.right);
     assert.ok(/function prompt \{[\s\S]*return \$o\n\}/.test(code), c.name);
     const opens = (code.match(/\{/g) || []).length, closes = (code.match(/\}/g) || []).length;
     // Braces inside single-quoted strings are balanced in our templates, so the totals must match.
@@ -183,7 +237,7 @@ if (has(PWSH)) {
   test('PowerShell parses the generated code', () => {
     for (const c of cases) {
       const file = path.join(tmp, 'p.ps1');
-      fs.writeFileSync(file, PG.gen.generate('pwsh', c.els));
+      fs.writeFileSync(file, PG.gen.generate('pwsh', c.left, 'truecolor', c.right));
       const r = spawnSync(PWSH, ['-NoProfile', '-Command', '$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile("' + file + '", [ref]$null, [ref]$e); if ($e.Count) { $e | % { $_.Message }; exit 1 }'], { encoding: 'utf8' });
       assert.strictEqual(r.status, 0, c.name + ': ' + r.stdout);
     }

@@ -50,7 +50,9 @@ Everything is driven by one ordered list of **elements**:
 | Common special characters | Symbols tab: prompt arrows, punctuation, box drawing, Powerline/Nerd glyphs and emoji, plus custom text. |
 | Copy button | Copies the complete snippet (`navigator.clipboard`, with an `execCommand` fallback for `file://`). |
 | Export as text file | "Download .txt" saves `prompt-<shell>.txt`. |
-| About a dozen presets | 16 presets in `js/presets.js`, shown in a gallery that renders each one. |
+| About a dozen presets | 17 presets in `js/presets.js`, shown in a gallery that renders each one. |
+| *(added)* Right-side prompt | A Left/Right switch in the editor. Native `RPROMPT` (zsh) and `fish_right_prompt`; emulated in bash and PowerShell (see below). The preview pins it to the right edge of the input line. |
+| *(added)* Command duration | `duration` field with a threshold (seconds), auto or whole-seconds format, and before/after text. The preview shows a fast and a slow command. |
 
 ## Shell-specific notes
 
@@ -59,22 +61,28 @@ Everything is driven by one ordered list of **elements**:
 - Non-printing sequences are wrapped in `\[ \]` so line editing measures the prompt correctly.
 - Literal text is escaped for prompt decoding *and* the expansion that follows it: `\` → `\\\\`, `$` → `\\$`, `` ` `` → ``\\` ``. These were verified empirically with `${PS1@P}`.
 - Dynamic fields (git, venv, env vars, commands, SSH) are tiny generated functions (`__pg_fN`) referenced as `$(__pg_fN)`. Their arguments are written with ordinary shell quoting instead of passing through PS1 decoding.
-- `__pg_save_status` is prepended to `PROMPT_COMMAND` (idempotently) so the exit code survives other hooks.
+- `__pg_save_status` is prepended to `PROMPT_COMMAND` (idempotently, whether `PROMPT_COMMAND` is a string or a bash 5.1+ array) so the exit code survives other hooks.
+- **Duration:** a DEBUG trap records `$EPOCHREALTIME` once per command line (`__pg_timer_start`), `__pg_save_status` turns it into `__pg_dur` in ms, and `__pg_timer_reset` (appended to the end of `PROMPT_COMMAND`) clears it, so the hooks' own commands don't restart the timer. bash before 5.0 falls back to `$SECONDS`. An existing DEBUG trap (for example bash-preexec) is left alone, in which case the duration stays 0.
+- **Right prompt:** bash has none, so the right side is rendered into `__pg_rps1` and expanded with `${__pg_rps1@P}` (bash 4.4+). `__pg_rprompt` measures it without SGR codes and prints `ESC 7`, `ESC [col G`, the text and `ESC 8` (save cursor, move, print, restore). It is wrapped in `\[ \]` at the start of the last PS1 line, so readline sees zero width. As in most emulations, typing a long command over it overwrites it until the next prompt.
 
 ### Zsh
 
 - `PROMPT=$'…'` with `PROMPT_SUBST`. Text is escaped for `$'…'`, then for prompt expansion (`%` → `%%`, `$`/`` ` `` backslashed).
 - zsh re-runs `%` expansion on the output of `$(…)`, so every generated function doubles any `%` in its output. The cross-shell tests caught this.
-- `__pg_save_status` is prepended to `precmd_functions`.
+- `__pg_save_status` is prepended to `precmd_functions`. For duration, `preexec` stores `$EPOCHREALTIME` (`zsh/datetime`) and `precmd` turns it into ms. An empty Enter skips `preexec`, so it shows nothing.
+- The right prompt is a plain `RPROMPT`. zsh hides it automatically when the command line reaches it.
 
 ### Fish
 
 - `fish_prompt` prints each piece with `printf`. Colors are raw SGR, so all three color modes behave the same as in the other shells.
+- The right prompt is `fish_right_prompt`. Duration comes from fish's built-in `$CMD_DURATION`.
 
 ### PowerShell
 
 - `function prompt` builds a string. `$?` and `$LASTEXITCODE` are read on the first line; a cmdlet failure without a native exit code is reported as `1`.
 - `$` / `#` uses `id -u` on Linux/macOS and an Administrator check on Windows.
+- Duration is `EndExecutionTime - StartExecutionTime` of the newest history entry, shown once per entry so an empty Enter doesn't repeat it.
+- The right prompt is emulated as in bash. It is inserted after the last newline of the prompt string, at a column computed from the console width (or `$env:COLUMNS`, or 80).
 
 ### Color modes
 
@@ -87,11 +95,11 @@ Everything is driven by one ordered list of **elements**:
 `node tests/run.js` runs:
 
 1. Unit tests for hue shifting, gradients, quantization and the importer (Debian default, tput + `__git_ps1`, robbyrussell, zsh `%F`/truecolor).
-2. Cross-shell rendering. Every preset and a deliberately hostile "stress" prompt are generated for each shell, sourced in the real shell (inside a temporary git repo, with env vars, venv and exit status 0 and 3) and rendered: `${PS1@P}` in bash, `print -P` in zsh, `fish_prompt`, and `prompt` in PowerShell. Every shell's output must be byte-identical. Missing shells are skipped locally; CI installs all of them.
+2. Cross-shell rendering. Every preset and a deliberately hostile "stress" prompt (left and right) are generated for each shell, sourced in the real shell (inside a temporary git repo, with env vars and venv, for exit status 0 with no duration and status 3 after 4.2 s) and rendered: `${PS1@P}` in bash, `print -P` in zsh, `fish_prompt`, and `prompt` in PowerShell. Every shell's left and right output must be byte-identical, and the emulated right prompt must land at the right column. Duration formatting is checked against the preview's formatter from 5 ms to 1 h. Missing shells are skipped locally; CI installs all of them.
 
 ## Possible future work
 
-- Right-side prompts (`RPROMPT`, fish `fish_right_prompt`).
-- Command duration and battery fields.
+- Battery field.
+- Hiding the emulated right prompt (bash/PowerShell) while typing, the way zsh and fish do.
 - Auto-generated Powerline separators that follow neighbouring background colors.
 - Import from fish and PowerShell prompt functions.

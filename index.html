@@ -47,6 +47,9 @@
     <section class="panel editor-panel" aria-label="Prompt editor">
       <div class="panel-head">
         <h2>Editor</h2>
+        <div class="seg small side-tabs" id="side-tabs" role="tablist" aria-label="Which prompt to edit">
+          <button data-side="left" class="active" role="tab">Left prompt</button><button data-side="right" role="tab">Right prompt</button>
+        </div>
         <div class="head-actions">
           <button class="btn small toggle" id="btn-multi" aria-pressed="false" title="Tap elements to add them to the selection">Multi-select</button>
           <button class="btn small" id="btn-select-all">All</button>
@@ -146,7 +149,7 @@
   <div class="modal" id="modal-import" hidden role="dialog" aria-modal="true" aria-labelledby="import-title">
     <div class="modal-card">
       <div class="modal-head"><h2 id="import-title">Import a prompt</h2><button class="btn icon" data-close aria-label="Close">✕</button></div>
-      <p class="muted">Paste a bash <code>PS1</code> or zsh <code>PROMPT</code>, with or without the <code>PS1=</code> part. Tip: run <code>echo "$PS1"</code> in your shell to see your current one.</p>
+      <p class="muted">Paste a bash <code>PS1</code> or zsh <code>PROMPT</code>, with or without the <code>PS1=</code> part. A zsh <code>RPROMPT=…</code> goes into the right prompt. Tip: run <code>echo "$PS1"</code> in your shell to see your current one.</p>
       <textarea id="import-text" class="input mono" rows="5" spellcheck="false" placeholder="PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '"></textarea>
       <div class="row gap wrap">
         <label class="muted small">Syntax

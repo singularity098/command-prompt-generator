@@ -13,7 +13,7 @@
   const TAGS = {
     user: 'user', host: 'host', fqdn: 'fqdn', promptChar: '$ / #', ssh: 'ssh', cwd: 'path', cwdBase: 'dir', cwdAbs: 'abs path',
     cwdTrim: 'path …', time: 'time', exit: 'exit code', jobs: 'jobs', history: 'history', git: 'git', gitDirty: 'git dirty',
-    venv: 'venv', shell: 'shell', shellVer: 'version', tty: 'tty', env: 'env', cmd: 'command'
+    venv: 'venv', duration: 'duration', shell: 'shell', shellVer: 'version', tty: 'tty', env: 'env', cmd: 'command'
   };
   const INSTALL = {
     bash: 'Paste into <code>~/.bashrc</code>, then run <code>source ~/.bashrc</code>.',
@@ -29,22 +29,30 @@
 
   /* ---------------- state ---------------- */
   const state = {
-    elements: [], shell: 'bash', colorMode: 'truecolor',
+    elements: [], right: [], shell: 'bash', colorMode: 'truecolor',
     term: Object.assign({}, DEFAULT_TERM), sim: Object.assign({}, M.DEFAULT_SIM), theme: 'dark',
     grad: { stops: ['#ff512f', '#f09819', '#dd2476'], layer: 'fg', by: 'chars', space: 'oklab' }
   };
-  const ui = { selected: new Set(), multi: false, anchor: null, hueSnap: null, hueBase: 0, hueVal: 0 };
+  const ui = { selected: new Set(), multi: false, anchor: null, hueSnap: null, hueBase: 0, hueVal: 0, side: 'left' };
+
+  /* The element list being edited: the left (main) prompt or the right prompt. */
+  function L() { return ui.side === 'right' ? state.right : state.elements; }
+  function setL(list) { if (ui.side === 'right') state.right = list; else state.elements = list; }
+  /* Presets return a bare list (left only) or { left, right }. */
+  function presetParts(p) { const b = p.build(); return Array.isArray(b) ? { left: b, right: [] } : { left: b.left, right: b.right || [] }; }
+  function snapshot() { return JSON.stringify({ l: state.elements, r: state.right }); }
+  function restore(json) { const d = JSON.parse(json); state.elements = d.l; state.right = d.r; }
   const hist = { undo: [], redo: [], lastKey: null, lastTime: 0 };
 
   function storage(fn) { try { return fn(window.localStorage); } catch (e) { return null; } }
 
   function save() {
-    const data = { elements: state.elements, shell: state.shell, colorMode: state.colorMode, term: state.term, sim: state.sim, theme: state.theme, grad: state.grad };
+    const data = { elements: state.elements, right: state.right, shell: state.shell, colorMode: state.colorMode, term: state.term, sim: state.sim, theme: state.theme, grad: state.grad };
     storage((ls) => ls.setItem(STORE_KEY, JSON.stringify(data)));
   }
 
   function encodeShare() {
-    const data = { e: state.elements.map(stripId), s: state.shell, m: state.colorMode, t: state.term };
+    const data = { e: state.elements.map(stripId), r: state.right.map(stripId), s: state.shell, m: state.colorMode, t: state.term };
     return btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
   function decodeShare(str) {
@@ -61,6 +69,7 @@
     const saved = storage((ls) => JSON.parse(ls.getItem(STORE_KEY) || 'null'));
     if (saved) {
       state.elements = M.reid(validElements(saved.elements));
+      state.right = M.reid(validElements(saved.right));
       if (G.SHELLS[saved.shell]) state.shell = saved.shell;
       if (['truecolor', '256', '16'].includes(saved.colorMode)) state.colorMode = saved.colorMode;
       if (saved.term) Object.assign(state.term, saved.term);
@@ -69,13 +78,16 @@
       if (saved.grad && Array.isArray(saved.grad.stops)) Object.assign(state.grad, saved.grad);
     } else {
       const p = PG.presets.find((x) => x.name === 'Starship Style') || PG.presets[0];
-      state.elements = M.reid(p.build());
+      const parts = presetParts(p);
+      state.elements = M.reid(parts.left);
+      state.right = M.reid(parts.right);
     }
     const m = location.hash.match(/^#p=([\w-]+)/);
     if (m) {
       try {
         const d = decodeShare(m[1]);
         state.elements = M.reid(validElements(d.e));
+        state.right = M.reid(validElements(d.r));
         if (G.SHELLS[d.s]) state.shell = d.s;
         if (d.m) state.colorMode = d.m;
         if (d.t) Object.assign(state.term, d.t);
@@ -89,7 +101,7 @@
   function checkpoint(key) {
     const now = Date.now();
     if (key && key === hist.lastKey && now - hist.lastTime < 1500) { hist.lastTime = now; return; }
-    hist.undo.push(JSON.stringify(state.elements));
+    hist.undo.push(snapshot());
     if (hist.undo.length > 300) hist.undo.shift();
     hist.redo.length = 0;
     hist.lastKey = key || null;
@@ -114,28 +126,28 @@
   }
   function undo() {
     if (!hist.undo.length) return;
-    hist.redo.push(JSON.stringify(state.elements));
-    state.elements = JSON.parse(hist.undo.pop());
+    hist.redo.push(snapshot());
+    restore(hist.undo.pop());
     hist.lastKey = null;
     changed();
   }
   function redo() {
     if (!hist.redo.length) return;
-    hist.undo.push(JSON.stringify(state.elements));
-    state.elements = JSON.parse(hist.redo.pop());
+    hist.undo.push(snapshot());
+    restore(hist.redo.pop());
     hist.lastKey = null;
     changed();
   }
 
   /* ---------------- selection ---------------- */
   function pruneSelection() {
-    const ids = new Set(state.elements.map((e) => e.id));
+    const ids = new Set(L().map((e) => e.id));
     ui.selected.forEach((id) => { if (!ids.has(id)) ui.selected.delete(id); });
   }
-  function selectedEls() { return state.elements.filter((e) => ui.selected.has(e.id)); }
+  function selectedEls() { return L().filter((e) => ui.selected.has(e.id)); }
   /* Elements that bulk tools act on: the selection, or everything when nothing is selected. */
-  function targets() { const s = selectedEls(); return s.length ? s : state.elements.slice(); }
-  function indexOf(id) { return state.elements.findIndex((e) => e.id === id); }
+  function targets() { const s = selectedEls(); return s.length ? s : L().slice(); }
+  function indexOf(id) { return L().findIndex((e) => e.id === id); }
 
   function selectionChanged() {
     resetHue();
@@ -148,7 +160,7 @@
     if (ev && ev.shiftKey && ui.anchor && indexOf(ui.anchor) >= 0) {
       const a = indexOf(ui.anchor), b = indexOf(id);
       if (!additive) ui.selected.clear();
-      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) ui.selected.add(state.elements[i].id);
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) ui.selected.add(L()[i].id);
     } else if (additive) {
       if (ui.selected.has(id)) ui.selected.delete(id); else ui.selected.add(id);
       ui.anchor = id;
@@ -159,18 +171,38 @@
     }
     selectionChanged();
   }
-  function selectAll() { state.elements.forEach((e) => ui.selected.add(e.id)); selectionChanged(); }
+  function setSide(side) {
+    ui.side = side;
+    ui.selected.clear();
+    $$('#side-tabs button').forEach((b) => {
+      const on = b.dataset.side === side;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', String(on));
+    });
+    $('#editor').classList.toggle('right-side', side === 'right');
+    selectionChanged();
+  }
+  function updateSideTabs() {
+    const n = state.right.length;
+    $('#side-tabs [data-side="right"]').textContent = 'Right prompt' + (n ? ' (' + n + ')' : '');
+  }
+  function selectAll() { L().forEach((e) => ui.selected.add(e.id)); selectionChanged(); }
   function selectNone() { ui.selected.clear(); selectionChanged(); }
 
   /* ---------------- element operations ---------------- */
   function insertionIndex() {
     const sel = selectedEls();
-    return sel.length ? indexOf(sel[sel.length - 1].id) + 1 : state.elements.length;
+    return sel.length ? indexOf(sel[sel.length - 1].id) + 1 : L().length;
   }
   function addElements(list, index) {
+    if (ui.side === 'right' && list.some((e) => e.kind === 'newline')) {
+      list = list.filter((e) => e.kind !== 'newline');
+      toast('The right prompt is a single line');
+      if (!list.length) return;
+    }
     if (index == null) index = insertionIndex();
     mutate(() => {
-      state.elements.splice(index, 0, ...list);
+      L().splice(index, 0, ...list);
       ui.selected = new Set(list.map((e) => e.id));
       ui.anchor = list[list.length - 1].id;
     });
@@ -179,18 +211,18 @@
   function removeElements(ids) {
     const set = new Set(ids);
     if (!set.size) return;
-    mutate(() => { state.elements = state.elements.filter((e) => !set.has(e.id)); });
+    mutate(() => { setL(L().filter((e) => !set.has(e.id))); });
   }
   function moveElements(ids, index) {
     const set = new Set(ids);
     let anchorId = null;
-    for (let i = index; i < state.elements.length; i++) if (!set.has(state.elements[i].id)) { anchorId = state.elements[i].id; break; }
-    const moving = state.elements.filter((e) => set.has(e.id));
-    const rest = state.elements.filter((e) => !set.has(e.id));
+    for (let i = index; i < L().length; i++) if (!set.has(L()[i].id)) { anchorId = L()[i].id; break; }
+    const moving = L().filter((e) => set.has(e.id));
+    const rest = L().filter((e) => !set.has(e.id));
     const at = anchorId ? rest.findIndex((e) => e.id === anchorId) : rest.length;
     const next = rest.slice(0, at).concat(moving, rest.slice(at));
-    if (next.every((e, i) => e === state.elements[i])) { renderEditor(); return; }
-    mutate(() => { state.elements = next; });
+    if (next.every((e, i) => e === L()[i])) { renderEditor(); return; }
+    mutate(() => { setL(next); });
   }
   function duplicateSelected() {
     const sel = selectedEls();
@@ -202,17 +234,18 @@
     if (!sel.length) return;
     const first = indexOf(sel[0].id), last = indexOf(sel[sel.length - 1].id);
     if (dir < 0 && first === 0) return;
-    if (dir > 0 && last === state.elements.length - 1) return;
+    if (dir > 0 && last === L().length - 1) return;
     moveElements(sel.map((e) => e.id), dir < 0 ? first - 1 : last + 2);
   }
 
   /* ---------------- rendering helpers ---------------- */
   function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
-  function simFor(status) {
+  function simFor(status, duration) {
     const s = Object.assign({}, state.sim);
     s.shell = state.shell;
     s.status = status || 0;
+    s.duration = duration != null ? duration : (parseInt(state.sim.duration, 10) || 0);
     s.now = new Date();
     return s;
   }
@@ -252,6 +285,18 @@
       if (!text) return '';
       return '<span class="' + (el.blink ? 'blink' : '') + '" style="' + cssFor(el, status) + '">' + glyphHTML(text) + '</span>';
     }).join('');
+  }
+
+  /*
+   * One prompt as terminal lines. The right prompt sits at the right edge of the last line,
+   * where the cursor is (zsh/fish natively; bash/PowerShell via the generated cursor moves).
+   */
+  function promptBlockHTML(left, right, status, sim, tail) {
+    const lines = promptHTML(left, status, sim).split('\n');
+    const last = lines.pop();
+    const r = right.length ? promptHTML(right.filter((e) => e.kind !== 'newline'), status, sim) : '';
+    return lines.map((l) => '<div class="tl">' + (l || '\u200b') + '</div>').join('') +
+      '<div class="tl tl-last"><span class="tl-left">' + last + (tail || '') + '</span>' + (r ? '<span class="tl-right">' + r + '</span>' : '') + '</div>';
   }
 
   /* ---------------- palette ---------------- */
@@ -326,11 +371,14 @@
 
   function renderEditor() {
     const ed = $('#editor');
+    updateSideTabs();
     ed.innerHTML = '';
-    if (!state.elements.length) {
-      ed.innerHTML = '<div class="editor-empty">Drag fields and symbols here to build your prompt,<br>or pick a preset to start from.</div>';
+    if (!L().length) {
+      ed.innerHTML = ui.side === 'right'
+        ? '<div class="editor-empty">Drag elements here for a right-aligned prompt, such as the time or how long the last command took.<br>Native in zsh and fish; emulated with cursor moves in bash and PowerShell.</div>'
+        : '<div class="editor-empty">Drag fields and symbols here to build your prompt,<br>or pick a preset to start from.</div>';
     }
-    state.elements.forEach((el) => {
+    L().forEach((el) => {
       const chip = document.createElement('div');
       chip.className = 'chip' + (el.kind === 'newline' ? ' newline' : '') + (ui.selected.has(el.id) ? ' selected' : '');
       chip.dataset.id = el.id;
@@ -524,6 +572,12 @@
         return '<div class="field">' + propInput('Text', 'text', p.text) + '</div>';
       case 'cwdTrim':
         return '<div class="field">' + propInput('Directories to keep', 'depth', p.depth, 'type="number" min="1" max="9"') + '</div>';
+      case 'duration':
+        return '<div class="field two">' + propInput('Show after (seconds)', 'min', p.min, 'type="number" min="0" step="0.5"') +
+          '<label class="stack">Format<select class="input" data-propselect="style">' +
+          '<option value="auto"' + (p.style !== 'seconds' ? ' selected' : '') + '>Auto (350ms, 4.2s, 1m 5s)</option>' +
+          '<option value="seconds"' + (p.style === 'seconds' ? ' selected' : '') + '>Whole seconds (4s)</option></select></label></div>' +
+          '<div class="field two">' + propInput('Before', 'pre', p.pre) + propInput('After', 'suf', p.suf) + '</div>';
       case 'cmd':
         return '<div class="field">' + propInput('Command (' + G.SHELLS[state.shell].label + ' syntax)', 'cmd', p.cmd, 'spellcheck="false" class="mono"') + '</div>' +
           '<div class="field">' + propInput('Preview value', 'sample', p.sample) + '</div>';
@@ -599,6 +653,7 @@
       }, 'prop-' + k);
       if (k === 'fmt') { const s = $('[data-timefmt]', box); if (s) s.value = M.TIME_FORMATS.some((f) => f.fmt === inp.value) ? inp.value : '__custom'; }
     }));
+    $$('[data-propselect]', box).forEach((inp) => inp.addEventListener('change', () => mutate(() => { sel()[0].props[inp.dataset.propselect] = inp.value; })));
     $$('[data-propcheck]', box).forEach((inp) => inp.addEventListener('change', () => mutate(() => { sel()[0].props[inp.dataset.propcheck] = inp.checked; })));
     const tf = $('[data-timefmt]', box);
     if (tf) tf.addEventListener('change', () => {
@@ -633,7 +688,7 @@
     ui.hueVal = v;
     $('#hue-value').textContent = (v > 0 ? '+' : '') + v + '°';
     const ids = new Set(ui.hueTargets);
-    Tl.applyHue(state.elements.filter((e) => ids.has(e.id)), ui.hueSnap, v - ui.hueBase, { fg: $('#hue-fg').checked, bg: $('#hue-bg').checked });
+    Tl.applyHue(L().filter((e) => ids.has(e.id)), ui.hueSnap, v - ui.hueBase, { fg: $('#hue-fg').checked, bg: $('#hue-bg').checked });
     changed({ keepHue: true });
   }
 
@@ -670,7 +725,7 @@
     $$('#grad-by button').forEach((b) => b.addEventListener('click', () => { state.grad.by = b.dataset.v; renderGradient(); save(); }));
     $('#grad-space').addEventListener('change', (e) => { state.grad.space = e.target.value; save(); });
     $('#grad-apply').addEventListener('click', () => {
-      if (!state.elements.length) { toast('Add some elements first'); return; }
+      if (!L().length) { toast('Add some elements first'); return; }
       mutate(() => Tl.applyGradient(targets(), state.grad.stops, { layer: state.grad.layer, by: state.grad.by, space: state.grad.space, sim: simFor(0) }));
     });
   }
@@ -692,14 +747,18 @@
     root.style.setProperty('--term-fg', state.term.fg);
     $('#term-bg').value = state.term.bg;
     $('#term-fg').value = state.term.fg;
-    const s0 = simFor(0), s1 = simFor(1);
+    const s0 = simFor(0);
     $('#term-title').textContent = (s0.root ? 'root' : s0.user) + '@' + s0.host + ': ' + M.tildePath(s0) + ' — ' + G.SHELLS[state.shell].label;
-    const cmd = (t) => '<span class="cmd">' + esc(t) + '</span>\n';
+    const cmd = (t) => '<span class="cmd">' + esc(t) + '</span>';
+    const out = (t) => '<div class="out">' + esc(t) + '</div>';
+    const L0 = state.elements, R0 = state.right;
+    // A fast command, then a slow failing one, so exit-code and duration styles both show.
     $('#term-body').innerHTML =
-      promptHTML(state.elements, 0, s0) + cmd('ls') +
-      '<span class="out">README.md  css  docs  index.html  js  tests</span>\n' +
-      promptHTML(state.elements, 0, s0) + cmd('false') +
-      promptHTML(state.elements, 1, s1) + '<span class="cursor">&nbsp;</span>';
+      promptBlockHTML(L0, R0, 0, simFor(0, 0), cmd('ls')) +
+      out('README.md  css  docs  index.html  js  tests') +
+      promptBlockHTML(L0, R0, 0, simFor(0, 12), cmd('npm test')) +
+      out('✖ 1 of 48 tests failed') +
+      promptBlockHTML(L0, R0, 1, simFor(1), '<span class="cursor">&nbsp;</span>');
   }
 
   function renderSimForm() {
@@ -708,7 +767,7 @@
     const text = (k, label) => '<label>' + label + '<input class="input small" data-sim="' + k + '" value="' + esc(s[k]) + '"></label>';
     const check = (k, label) => '<label class="check"><input type="checkbox" data-simcheck="' + k + '"' + (s[k] ? ' checked' : '') + '> ' + label + '</label>';
     f.innerHTML = text('user', 'User') + text('host', 'Host') + text('domain', 'Domain') + text('home', 'Home') + text('cwd', 'Working dir') +
-      text('branch', 'Git branch') + text('venvName', 'Venv name') + text('jobs', 'Jobs') +
+      text('branch', 'Git branch') + text('venvName', 'Venv name') + text('jobs', 'Jobs') + text('duration', 'Slow command (ms)') +
       check('inGit', 'In a git repo') + check('dirty', 'Uncommitted changes') + check('venv', 'Venv active') + check('ssh', 'SSH session') + check('root', 'Root user');
     const refresh = () => { renderEditor(); renderPreview(); save(); };
     $$('[data-sim]', f).forEach((inp) => inp.addEventListener('input', () => { s[inp.dataset.sim] = inp.value; refresh(); }));
@@ -716,7 +775,7 @@
   }
 
   /* ---------------- output ---------------- */
-  function currentCode() { return G.generate(state.shell, state.elements, state.colorMode); }
+  function currentCode() { return G.generate(state.shell, state.elements, state.colorMode, state.right); }
 
   function renderCode() {
     const code = currentCode();
@@ -777,12 +836,14 @@
     const sim = simFor(0);
     grid.innerHTML = '';
     PG.presets.forEach((p) => {
-      const els = p.build();
+      const parts = presetParts(p);
+      const left = parts.left[0] && parts.left[0].kind === 'newline' ? parts.left.slice(1) : parts.left;
       const card = document.createElement('button');
       card.className = 'preset-card';
-      card.innerHTML = '<pre class="mini">' + promptHTML(els, 0, sim).replace(/^\n/, '') + '<span class="cursor">&nbsp;</span></pre><div class="meta"><b>' + esc(p.name) + '</b><span>' + esc(p.desc) + '</span></div>';
+      card.innerHTML = '<pre class="mini">' + promptBlockHTML(left, parts.right, 0, sim, '<span class="cursor">&nbsp;</span>') + '</pre><div class="meta"><b>' + esc(p.name) + '</b><span>' + esc(p.desc) + '</span></div>';
       card.addEventListener('click', () => {
-        mutate(() => { state.elements = M.reid(p.build()); ui.selected.clear(); });
+        mutate(() => { const parts = presetParts(p); state.elements = M.reid(parts.left); state.right = M.reid(parts.right); ui.selected.clear(); });
+        setSide(state.right.length && ui.side === 'right' ? 'right' : 'left');
         closeModal($('#modal-presets'));
         toast('Loaded “' + p.name + '”', 'Undo', undo);
       });
@@ -798,7 +859,9 @@
     let res;
     try { res = PG.importer.importPrompt(text, $('#import-syntax').value); } catch (e) { res = { elements: [], warnings: ['Could not parse: ' + e.message] }; }
     if (!res.elements.length) { msg.className = 'import-msg err'; msg.textContent = res.warnings.join(' ') || 'Nothing recognized.'; return; }
-    mutate(() => { state.elements = res.elements; ui.selected.clear(); });
+    const side = res.target === 'right' ? 'right' : 'left';
+    mutate(() => { if (side === 'right') state.right = res.elements.filter((e) => e.kind !== 'newline'); else state.elements = res.elements; ui.selected.clear(); });
+    setSide(side);
     closeModal($('#modal-import'));
     toast('Imported ' + res.elements.length + ' elements as ' + (res.syntax === 'zsh' ? 'zsh' : 'bash') + (res.warnings.length ? ' (' + res.warnings.length + ' warnings)' : ''), 'Undo', undo);
   }
@@ -842,6 +905,7 @@
     $('#custom-text').addEventListener('keydown', (e) => { if (e.key === 'Enter') addCustom(); });
 
     $('#editor').addEventListener('pointerdown', (e) => { if (e.target.id === 'editor' || e.target.classList.contains('editor-empty')) { if (ui.selected.size) selectNone(); } });
+    $$('#side-tabs button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.side !== ui.side) setSide(b.dataset.side); }));
     $('#btn-multi').addEventListener('click', () => { ui.multi = !ui.multi; updateMeta(); });
     $('#btn-select-all').addEventListener('click', selectAll);
     $('#btn-select-none').addEventListener('click', selectNone);
@@ -858,8 +922,8 @@
     $('#btn-undo').addEventListener('click', undo);
     $('#btn-redo').addEventListener('click', redo);
     $('#btn-clear').addEventListener('click', () => {
-      if (!state.elements.length) return;
-      mutate(() => { state.elements = []; });
+      if (!state.elements.length && !state.right.length) return;
+      mutate(() => { state.elements = []; state.right = []; });
       toast('Prompt cleared', 'Undo', undo);
     });
     $('#btn-theme').addEventListener('click', () => { state.theme = state.theme === 'dark' ? 'light' : 'dark'; applyTheme(); save(); });
@@ -890,21 +954,21 @@
       if (mod && k === 'a' && document.activeElement === $('#editor')) { e.preventDefault(); selectAll(); return; }
       if ((e.key === 'Delete' || e.key === 'Backspace') && ui.selected.size) { e.preventDefault(); removeElements(selectedEls().map((x) => x.id)); return; }
       if (e.key === 'Escape' && ui.selected.size) { selectNone(); return; }
-      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && state.elements.length && (document.activeElement === $('#editor') || ui.selected.size)) {
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && L().length && (document.activeElement === $('#editor') || ui.selected.size)) {
         e.preventDefault();
         const dir = e.key === 'ArrowLeft' ? -1 : 1;
         if (e.altKey) { nudgeSelected(dir); return; }
         const sel = selectedEls();
-        let i = sel.length ? indexOf((dir < 0 ? sel[0] : sel[sel.length - 1]).id) + dir : (dir < 0 ? state.elements.length - 1 : 0);
-        i = Math.max(0, Math.min(state.elements.length - 1, i));
-        select(state.elements[i].id, { shiftKey: e.shiftKey });
+        let i = sel.length ? indexOf((dir < 0 ? sel[0] : sel[sel.length - 1]).id) + dir : (dir < 0 ? L().length - 1 : 0);
+        i = Math.max(0, Math.min(L().length - 1, i));
+        select(L()[i].id, { shiftKey: e.shiftKey });
       }
     });
 
     // Keep clocks in the preview ticking.
     setInterval(() => {
       if (ptr || document.hidden) return;
-      if (state.elements.some((e) => e.field === 'time')) { renderPreview(); renderEditor(); }
+      if (state.elements.concat(state.right).some((e) => e.field === 'time')) { renderPreview(); renderEditor(); }
     }, 1000);
   }
 

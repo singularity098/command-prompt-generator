@@ -454,6 +454,7 @@
     var kind = !syntax || syntax === 'auto' ? detect(value) : syntax;
     var res = kind === 'zsh' ? parseZsh(value) : parseBash(value);
     res.syntax = kind;
+    if (/^\s*(?:export\s+|typeset\s+)?(RPROMPT|RPS1)\s*=/.test(String(input))) res.target = 'right';
     if (!res.elements.length) res.warnings.push('Nothing to import.');
     return res;
   }
