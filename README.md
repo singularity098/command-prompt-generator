@@ -63,3 +63,7 @@ node tests/run.js
 Besides unit tests for the color math and the importer, the suite generates every preset plus a stress prompt (quotes, `$`, backticks, `%`, `\`, git, venv, env vars, commands, exit codes, all style attributes). It then runs them in the real shells and checks that every installed shell renders byte-identical output. Shells that are not installed are skipped. CI installs bash, zsh, fish and PowerShell.
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the design and how each requirement is met.
+
+## License
+
+[MIT](LICENSE)
