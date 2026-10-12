@@ -86,12 +86,15 @@
       <div id="inspector"></div>
 
       <div class="tool" id="tool-hue">
-        <div class="tool-head"><h3>Hue shift</h3><span class="badge" id="hue-value">0°</span></div>
+        <div class="tool-head"><h3>Hue &amp; saturation</h3><span class="muted small" id="hue-scope"></span></div>
+        <div class="slider-row"><span class="slider-label">Hue</span><span class="badge" id="hue-value">0°</span></div>
         <input type="range" id="hue" min="-180" max="180" value="0" step="1" class="hue-slider" aria-label="Hue shift">
+        <div class="slider-row"><span class="slider-label">Saturation</span><span class="badge" id="sat-value">0%</span></div>
+        <input type="range" id="sat" min="-100" max="100" value="0" step="1" class="hue-slider sat-slider" aria-label="Saturation">
         <div class="row gap">
           <label class="check"><input type="checkbox" id="hue-fg" checked> Text</label>
           <label class="check"><input type="checkbox" id="hue-bg" checked> Background</label>
-          <span class="muted small" id="hue-scope"></span>
+          <button class="btn small" id="adjust-reset" title="Put the colors back to how they were before moving the sliders">Reset</button>
         </div>
       </div>
 

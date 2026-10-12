@@ -16,18 +16,22 @@
     return snap;
   }
 
-  function applyHue(targets, snap, deg, layers) {
+  /* Recolor from the snapshot: rotate hue by `deg`, then scale saturation by `sat` percent. */
+  function applyAdjust(targets, snap, deg, sat, layers) {
+    function adj(hex) { return C.adjustSaturation(C.shiftHue(hex, deg), sat); }
     targets.forEach(function (el) {
       var s = snap[el.id];
       if (!s) return;
-      if (layers.fg && s.fg) el.fg = C.shiftHue(s.fg, deg);
-      if (layers.bg && s.bg) el.bg = C.shiftHue(s.bg, deg);
+      // A layer that is switched off keeps (or goes back to) its snapshot color.
+      if (s.fg) el.fg = layers.fg ? adj(s.fg) : s.fg;
+      if (s.bg) el.bg = layers.bg ? adj(s.bg) : s.bg;
       if (el.field === 'exit') {
-        if (layers.fg && s.failFg) el.props.failFg = C.shiftHue(s.failFg, deg);
-        if (layers.bg && s.failBg) el.props.failBg = C.shiftHue(s.failBg, deg);
+        if (s.failFg) el.props.failFg = layers.fg ? adj(s.failFg) : s.failFg;
+        if (s.failBg) el.props.failBg = layers.bg ? adj(s.failBg) : s.failBg;
       }
     });
   }
+  function applyHue(targets, snap, deg, layers) { applyAdjust(targets, snap, deg, 0, layers); }
 
   /*
    * Color `targets` with a gradient running left to right across the prompt.
@@ -63,8 +67,16 @@
     { name: 'Fire', stops: ['#fde047', '#f97316', '#dc2626'] },
     { name: 'Mint', stops: ['#a7f3d0', '#34d399', '#059669'] },
     { name: 'Rainbow', stops: ['#ff5f5f', '#ffaf5f', '#ffff5f', '#5fff87', '#5fafff', '#af87ff'] },
-    { name: 'Mono', stops: ['#f4f4f5', '#71717a'] }
+    { name: 'Mono', stops: ['#f4f4f5', '#71717a'] },
+    { name: 'Vaporwave', stops: ['#ff71ce', '#b967ff', '#01cdfe', '#05ffa1'] },
+    { name: 'Galaxy', stops: ['#3a0ca3', '#7209b7', '#f72585', '#ffb3c6'] },
+    { name: 'Neon', stops: ['#39ff14', '#00f0ff', '#ff00e6'] },
+    { name: 'Cotton Candy', stops: ['#a1c4fd', '#c2b5f7', '#fbc2eb'] },
+    { name: 'Peach', stops: ['#ffe5b4', '#ffb38a', '#ff7f6e'] },
+    { name: 'Lagoon', stops: ['#43cea2', '#1fa2c4', '#185a9d'] },
+    { name: 'Forest', stops: ['#d4fc79', '#56ab2f', '#1e6b52'] },
+    { name: 'Arctic', stops: ['#f0f9ff', '#7dd3fc', '#3b82f6', '#1e3a8a'] }
   ];
 
-  PG.tools = { snapshot: snapshot, applyHue: applyHue, applyGradient: applyGradient, colorable: colorable, GRADIENTS: GRADIENTS };
+  PG.tools = { snapshot: snapshot, applyHue: applyHue, applyAdjust: applyAdjust, applyGradient: applyGradient, colorable: colorable, GRADIENTS: GRADIENTS };
 })(typeof window !== 'undefined' ? (window.PG = window.PG || {}) : (globalThis.PG = globalThis.PG || {}));

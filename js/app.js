@@ -33,7 +33,7 @@
     term: Object.assign({}, DEFAULT_TERM), sim: Object.assign({}, M.DEFAULT_SIM), theme: 'dark',
     grad: { stops: ['#ff512f', '#f09819', '#dd2476'], layer: 'fg', by: 'chars', space: 'oklab' }
   };
-  const ui = { selected: new Set(), multi: false, anchor: null, hueSnap: null, hueBase: 0, hueVal: 0, side: 'left' };
+  const ui = { selected: new Set(), multi: false, anchor: null, hueSnap: null, hueVal: 0, satVal: 0, side: 'left' };
 
   /* The element list being edited: the left (main) prompt or the right prompt. */
   function L() { return ui.side === 'right' ? state.right : state.elements; }
@@ -590,7 +590,7 @@
     const sel = selectedEls();
     if (!sel.length) {
       box.innerHTML = '<div class="insp-title"><h3>Inspector</h3></div><div class="insp-empty">Select an element to edit it.<ul>' +
-        '<li>Shift/Ctrl+click or <b>Multi-select</b> to pick several.</li><li>Hue shift and gradients apply to the selection, or to everything when nothing is selected.</li>' +
+        '<li>Shift/Ctrl+click or <b>Multi-select</b> to pick several.</li><li>Hue, saturation and gradients apply to the selection, or to everything when nothing is selected.</li>' +
         '<li>Keys: <code>Del</code> remove, <code>Alt+←/→</code> move, <code>Ctrl+D</code> duplicate, <code>Ctrl+Z</code> undo.</li></ul></div>';
       return;
     }
@@ -670,25 +670,32 @@
   }
 
   /* ---------------- hue & gradient tools ---------------- */
+  /* Forget the hue/saturation snapshot and put both sliders back to 0 (keeps the current colors). */
   function resetHue() {
     ui.hueSnap = null;
-    ui.hueVal = 0;
-    const h = $('#hue');
+    ui.hueVal = ui.satVal = 0;
+    const h = $('#hue'), sat = $('#sat');
     if (h) { h.value = 0; $('#hue-value').textContent = '0°'; }
+    if (sat) { sat.value = 0; $('#sat-value').textContent = '0%'; }
   }
 
-  function onHue() {
-    const v = parseInt($('#hue').value, 10) || 0;
+  /*
+   * Both sliders work from one snapshot taken on the first move, so they are relative,
+   * combine in any order, and dragging back to 0 restores the original colors.
+   */
+  function onAdjust() {
+    const v = parseInt($('#hue').value, 10) || 0, sv = parseInt($('#sat').value, 10) || 0;
     if (!ui.hueSnap) {
       ui.hueTargets = targets().map((e) => e.id);
       ui.hueSnap = Tl.snapshot(targets());
-      ui.hueBase = ui.hueVal;
       checkpoint(null);
     }
     ui.hueVal = v;
+    ui.satVal = sv;
     $('#hue-value').textContent = (v > 0 ? '+' : '') + v + '°';
+    $('#sat-value').textContent = (sv > 0 ? '+' : '') + sv + '%';
     const ids = new Set(ui.hueTargets);
-    Tl.applyHue(L().filter((e) => ids.has(e.id)), ui.hueSnap, v - ui.hueBase, { fg: $('#hue-fg').checked, bg: $('#hue-bg').checked });
+    Tl.applyAdjust(L().filter((e) => ids.has(e.id)), ui.hueSnap, v, sv, { fg: $('#hue-fg').checked, bg: $('#hue-bg').checked });
     changed({ keepHue: true });
   }
 
@@ -710,7 +717,16 @@
   }
 
   function bindTools() {
-    $('#hue').addEventListener('input', onHue);
+    $('#hue').addEventListener('input', onAdjust);
+    $('#sat').addEventListener('input', onAdjust);
+    // Re-apply when a layer checkbox flips mid-adjustment, so it takes effect immediately.
+    $$('#hue-fg, #hue-bg').forEach((c) => c.addEventListener('change', () => { if (ui.hueSnap) onAdjust(); }));
+    $('#adjust-reset').addEventListener('click', () => {
+      if (!ui.hueSnap) return;
+      $('#hue').value = 0; $('#sat').value = 0;
+      onAdjust();
+      resetHue();
+    });
     const pres = $('#grad-presets');
     pres.innerHTML = Tl.GRADIENTS.map((g, i) => '<button class="grad-preset" data-g="' + i + '" title="' + g.name + '" aria-label="' + g.name + ' gradient" style="background:linear-gradient(90deg,' + g.stops.join(',') + ')"></button>').join('');
     $$('[data-g]', pres).forEach((b) => b.addEventListener('click', () => { state.grad.stops = Tl.GRADIENTS[+b.dataset.g].stops.slice(); renderGradient(); save(); }));
@@ -894,7 +910,12 @@
     b.title = state.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
   }
 
-  function isTyping(t) { return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable); }
+  /* Focus is somewhere keys mean text (sliders, checkboxes and color pickers still allow shortcuts). */
+  function isTyping(t) {
+    if (!t) return false;
+    if (t.tagName === 'INPUT') return !/^(range|checkbox|radio|color|button|submit)$/.test(t.type);
+    return t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable;
+  }
 
   function bind() {
     $$('.tab').forEach((t) => t.addEventListener('click', () => {
@@ -958,6 +979,8 @@
       const k = e.key.toLowerCase();
       if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
       if (mod && k === 'y') { e.preventDefault(); redo(); return; }
+      // Everything below edits the prompt; leave keys alone while a slider, checkbox or button has focus.
+      if (/^(INPUT|BUTTON|SELECT)$/.test(e.target.tagName)) return;
       if (mod && k === 'd' && ui.selected.size) { e.preventDefault(); duplicateSelected(); return; }
       if (mod && k === 'a' && document.activeElement === $('#editor')) { e.preventDefault(); selectAll(); return; }
       if ((e.key === 'Delete' || e.key === 'Backspace') && ui.selected.size) { e.preventDefault(); removeElements(selectedEls().map((x) => x.id)); return; }

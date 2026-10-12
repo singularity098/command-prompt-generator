@@ -28,6 +28,32 @@ test('hue shift: blue moves toward green, yellow toward red', () => {
   assert.strictEqual(PG.color.shiftHue('#0000ff', -60), '#00ffff');
   assert.strictEqual(PG.color.shiftHue('#ffff00', -30), '#ff8000');
 });
+test('saturation: -100 is gray, +100 is fully saturated, 0 is unchanged, grays stay gray', () => {
+  const C = PG.color, hsl = (h) => C.rgbToHsl(C.hexToRgb(h));
+  assert.strictEqual(hsl(C.adjustSaturation('#3b82f6', -100))[1], 0);
+  assert.ok(hsl(C.adjustSaturation('#3b82f6', 100))[1] > 0.99);
+  assert.strictEqual(C.adjustSaturation('#3b82f6', 0), '#3b82f6');
+  assert.strictEqual(C.adjustSaturation('#808080', 100), '#808080');
+  const half = hsl(C.adjustSaturation('#3b82f6', -50))[1], orig = hsl('#3b82f6')[1];
+  assert.ok(Math.abs(half - orig / 2) < 0.01, 'half: ' + half);
+  assert.ok(Math.abs(hsl(C.adjustSaturation('#3b82f6', -50))[0] - hsl('#3b82f6')[0]) < 1, 'hue kept');
+});
+test('hue and saturation combine from one snapshot and return to the original at 0/0', () => {
+  const els = [M.make('text', { text: 'a', fg: '#3b82f6', bg: '#facc15' }), M.make('field', { field: 'exit', fg: '#22c55e', props: { failFg: '#ef4444' } })];
+  const snap = PG.tools.snapshot(els);
+  PG.tools.applyAdjust(els, snap, -60, -100, { fg: true, bg: false });
+  assert.strictEqual(PG.color.rgbToHsl(PG.color.hexToRgb(els[0].fg))[1], 0);
+  assert.strictEqual(els[0].bg, '#facc15', 'background layer was off');
+  assert.strictEqual(PG.color.rgbToHsl(PG.color.hexToRgb(els[1].props.failFg))[1], 0, 'exit failure color too');
+  PG.tools.applyAdjust(els, snap, 0, 0, { fg: true, bg: true });
+  assert.deepStrictEqual([els[0].fg, els[0].bg, els[1].fg, els[1].props.failFg], ['#3b82f6', '#facc15', '#22c55e', '#ef4444']);
+});
+test('16 gradient presets with unique names and valid colors', () => {
+  const g = PG.tools.GRADIENTS;
+  assert.strictEqual(g.length, 16);
+  assert.strictEqual(new Set(g.map((x) => x.name)).size, 16);
+  g.forEach((x) => { assert.ok(x.stops.length >= 2, x.name); x.stops.forEach((c) => assert.ok(PG.color.hexToRgb(c), x.name + ' ' + c)); });
+});
 test('gradient hits its end stops', () => {
   const els = [M.make('text', { text: 'a' }), M.make('text', { text: 'bb' }), M.make('text', { text: 'c' })];
   PG.tools.applyGradient(els, ['#ff0000', '#0000ff'], { layer: 'fg' });
