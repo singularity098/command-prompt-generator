@@ -35,10 +35,12 @@ It has no dependencies, no build step and no server. Open `index.html` in any mo
 
 | Shell | Where it goes |
 | --- | --- |
-| Bash | Paste into `~/.bashrc`, then `source ~/.bashrc` |
-| Zsh | Paste at the end of `~/.zshrc` (after oh-my-zsh or other theme setup) |
+| Bash | Paste into `~/.bashrc`, then `source ~/.bashrc`. For root too, also add it to `/root/.bashrc` |
+| Zsh | Paste at the end of `~/.zshrc` (after oh-my-zsh or other theme setup). For root too, also add it to root's `~/.zshrc` |
 | Fish | Save as `~/.config/fish/functions/fish_prompt.fish` |
 | PowerShell | Add to `$PROFILE` (use an ANSI-capable host such as Windows Terminal) |
+
+**Using it as root:** the bash and zsh prompts rely on helper functions and hooks that are defined in your shell startup file. Child shells don't inherit those, so a root shell from `su` or `sudo -i` needs the snippet in root's own startup file too. Without that, root simply keeps its default prompt. (The bash snippet un-exports `PS1`, so an old `export PS1=...` can't leak a prompt into shells that can't run it.)
 
 The snippet is wrapped in `# >>> prompt-generator >>>` markers so it is easy to find and replace later. It only defines the helpers the prompt uses.
 

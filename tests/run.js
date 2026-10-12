@@ -223,6 +223,16 @@ if (shells.length) {
     assert.ok(!ok.includes('✘'), 'hide-on-success exit code shown: ' + ok);
     assert.ok(bad.includes("\nrc=33 ✘'3"), bad);
   });
+  if (shells.includes('bash')) {
+    test('bash: child shells such as su do not inherit a PS1 they cannot run', () => {
+      const file = path.join(tmp, 'su.bash');
+      fs.writeFileSync(file, PG.gen.generate('bash', stress, 'truecolor', stressRight));
+      // A pre-existing `export PS1=...` must not leak the generated PS1 into child shells.
+      const r = spawnSync('bash', ['--norc', '--noprofile', '-c', 'export PS1=old; source "$1"; bash --norc --noprofile -c \'printf "%s" "${PS1-unset}"\'', 'x', file], { cwd: repo, env, encoding: 'utf8' });
+      assert.strictEqual(r.stderr, '');
+      assert.strictEqual(r.stdout, 'unset');
+    });
+  }
   test('exit code uses failure colors only on non-zero status', () => {
     const els = [M.make('field', { field: 'exit', fg: '#00ff00', props: { tpl: '{code}', failFg: '#ff0000' } })];
     for (const sh of shells) {

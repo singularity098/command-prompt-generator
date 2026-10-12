@@ -16,8 +16,8 @@
     venv: 'venv', duration: 'duration', shell: 'shell', shellVer: 'version', tty: 'tty', env: 'env', cmd: 'command'
   };
   const INSTALL = {
-    bash: 'Paste into <code>~/.bashrc</code>, then run <code>source ~/.bashrc</code>.',
-    zsh: 'Paste at the end of <code>~/.zshrc</code> (after any theme/framework setup), then run <code>source ~/.zshrc</code>.',
+    bash: 'Paste into <code>~/.bashrc</code>, then run <code>source ~/.bashrc</code>. To use it as root too (<code>su</code>, <code>sudo -i</code>), also add it to <code>/root/.bashrc</code>.',
+    zsh: 'Paste at the end of <code>~/.zshrc</code> (after any theme/framework setup), then run <code>source ~/.zshrc</code>. For root, also add it to root\'s <code>~/.zshrc</code>.',
     fish: 'Save as <code>~/.config/fish/functions/fish_prompt.fish</code>. It takes effect in new prompts immediately.',
     pwsh: 'Add to your profile (<code>notepad $PROFILE</code> or <code>code $PROFILE</code>), then restart PowerShell. Use Windows Terminal or another ANSI-capable host.'
   };

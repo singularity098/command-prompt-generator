@@ -164,6 +164,9 @@
       lines[lines.length - 1] = '\\[$(__pg_rprompt)\\]' + lines[lines.length - 1];
     }
     out.push("PS1='" + lines.join('\\n') + "'");
+    // PS1 depends on the functions above, which child shells (e.g. `su`) don't inherit. If an
+    // older `export PS1=...` marked it for export, un-export it so those shells keep their own prompt.
+    out.push('export -n PS1');
     out.push('# <<< prompt-generator (bash) <<<');
     return out.join('\n') + '\n';
   }
