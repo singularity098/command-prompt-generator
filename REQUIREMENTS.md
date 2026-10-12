@@ -1,0 +1,18 @@
+### Prompt Generator Requirements
+- Beautiful interface with dark theme by default
+- Works in a web browser with no dependencies
+- Works both in desktop browsers and mobile
+- Must work for all of the most common shell types, bash, zsh, fish, etc. The user chooses
+- All elements can have their background and foreground colors changed individually
+- Items are added to build the prompt by dragging the elements into a visual editor, and then previewed in a virtual dummy shell which also allows changing of the color, and is by default a very dark near-black
+- Can enter/import an already existing PS1 prompt variable and it will become editable
+- Add an option to display the exit code, and the exit code is conditionally highlighted in some color that the user chooses by using an extra function which is also provided. By default it is highlighted red when the exit code is non-zero.
+- Add a hue slider, which can modify the hue of multiple selected fields at once. For example, select a blue field and a yellow field, then shift the hue slider. The blue becomes teal, as it's shifting towards green. The yellow becomes orange, as it's shifting towards red.
+- Add options to color all fields using a gradient between 2 or more colors, such that the colors are shifted gradually from one side to the other side of the prompt
+- Any other common modifications to the elements are also possible, such as bold, italics, etc
+- Time field is available in many common formats
+- Be relatively thorough in choosing common fields that people might use
+- Common special characters are available to drag into the editor
+- A simple copy button is provided to put the PS1 into the clipboard
+- The PS1 may also be exported as a text file
+- Come up with about a dozen or so beautiful presets based on common PS1 variables that people use

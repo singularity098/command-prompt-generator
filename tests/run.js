@@ -1,0 +1,195 @@
+#!/usr/bin/env node
+/*
+ * Test suite. Run with: node tests/run.js
+ *
+ * - Unit tests for color math, gradients and the importer.
+ * - Cross-shell tests: every preset (plus a stress prompt) is generated for bash, zsh and fish,
+ *   executed in the real shells, and the rendered prompts must be byte-identical.
+ *   Shells that are not installed are skipped.
+ */
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFileSync, spawnSync } = require('child_process');
+const PG = require('./load.js');
+const M = PG.model;
+
+let passed = 0, failed = 0, skipped = 0;
+function test(name, fn) {
+  try { fn(); passed++; console.log('  ✓ ' + name); }
+  catch (e) { failed++; console.log('  ✗ ' + name + '\n    ' + String(e.message).split('\n').join('\n    ')); }
+}
+function has(cmd) { return spawnSync('sh', ['-c', 'command -v ' + cmd], { encoding: 'utf8' }).status === 0; }
+
+console.log('color');
+test('hue shift: blue moves toward green, yellow toward red', () => {
+  assert.strictEqual(PG.color.shiftHue('#0000ff', -60), '#00ffff');
+  assert.strictEqual(PG.color.shiftHue('#ffff00', -30), '#ff8000');
+});
+test('gradient hits its end stops', () => {
+  const els = [M.make('text', { text: 'a' }), M.make('text', { text: 'bb' }), M.make('text', { text: 'c' })];
+  PG.tools.applyGradient(els, ['#ff0000', '#0000ff'], { layer: 'fg' });
+  assert.strictEqual(els[0].fg, '#ff0000');
+  assert.strictEqual(els[2].fg, '#0000ff');
+  assert.notStrictEqual(els[1].fg, els[0].fg);
+});
+test('gradient skips newlines and can target backgrounds', () => {
+  const els = [M.make('text', { text: 'a' }), M.make('newline'), M.make('text', { text: 'b' })];
+  PG.tools.applyGradient(els, ['#000000', '#ffffff'], { layer: 'bg', by: 'elements' });
+  assert.strictEqual(els[0].bg, '#000000');
+  assert.strictEqual(els[1].bg, null);
+  assert.strictEqual(els[2].bg, '#ffffff');
+});
+test('256/16 color quantization', () => {
+  assert.strictEqual(PG.color.nearest256('#ff0000'), 196);
+  assert.strictEqual(PG.color.colorSgr('#f14c4c', 'fg', '16').join(';'), '91');
+  assert.strictEqual(PG.color.colorSgr('#102030', 'bg', 'truecolor').join(';'), '48;2;16;32;48');
+});
+
+console.log('importer');
+function kinds(res) { return res.elements.map((e) => e.kind === 'field' ? e.field : e.kind === 'text' ? JSON.stringify(e.text) : 'NL').join(' '); }
+test('Debian default PS1', () => {
+  const r = PG.importer.importPrompt("PS1='${debian_chroot:+($debian_chroot)}\\[\\033[01;32m\\]\\u@\\h\\[\\033[00m\\]:\\[\\033[01;34m\\]\\w\\[\\033[00m\\]\\$ '");
+  assert.strictEqual(r.syntax, 'bash');
+  assert.strictEqual(kinds(r), 'env user "@" host ":" cwd promptChar " "');
+  assert.ok(r.elements[1].bold && r.elements[1].fg);
+});
+test('tput colors and __git_ps1', () => {
+  const r = PG.importer.importPrompt('PS1="\\[$(tput setaf 2)\\]\\u\\[$(tput sgr0)\\] $(__git_ps1 \' [%s]\')\\n> "');
+  assert.strictEqual(kinds(r), 'user " " git NL "> "');
+  assert.strictEqual(r.elements[0].fg, PG.color.XTERM256[2]);
+  assert.deepStrictEqual([r.elements[2].props.pre, r.elements[2].props.suf], [' [', ']']);
+});
+test('oh-my-zsh robbyrussell becomes a status-colored arrow', () => {
+  const r = PG.importer.importPrompt('PROMPT="%(?:%{$fg_bold[green]%}➜ :%{$fg_bold[red]%}➜ ) %{$fg[cyan]%}%c%{$reset_color%} $(git_prompt_info)"');
+  assert.strictEqual(r.syntax, 'zsh');
+  assert.strictEqual(r.elements[0].field, 'exit');
+  assert.strictEqual(r.elements[0].props.tpl, '➜ ');
+  assert.ok(r.elements.some((e) => e.field === 'cwdBase'));
+  assert.ok(r.elements.some((e) => e.field === 'git'));
+});
+test('zsh %F/%B/%(!.#.$) and truecolor escapes', () => {
+  const r = PG.importer.importPrompt("PROMPT=$'%F{#ff8800}%B%n%b%f %{\\e[38;2;1;2;3m%}%~%{\\e[0m%} %(!.#.$) '");
+  assert.strictEqual(kinds(r), 'user " " cwd " " promptChar " "');
+  assert.strictEqual(r.elements[0].fg, '#ff8800');
+  assert.ok(r.elements[0].bold);
+  assert.strictEqual(r.elements[2].fg, '#010203');
+});
+
+console.log('generators (real shells)');
+const PWSH = process.env.PWSH || 'pwsh';
+const shells = ['bash', 'zsh', 'fish', 'pwsh'].filter((s) => has(s === 'pwsh' ? PWSH : s));
+['bash', 'zsh', 'fish', 'pwsh'].filter((s) => !shells.includes(s)).forEach((s) => { skipped++; console.log('  - skipped ' + s + ' (not installed)'); });
+
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pg-test-'));
+const repo = path.join(tmp, 'work', 'my repo', 'project');
+fs.mkdirSync(repo, { recursive: true });
+execFileSync('git', ['init', '-q', '-b', 'feature/x'], { cwd: repo });
+fs.writeFileSync(path.join(repo, 'dirty.txt'), 'x');
+const env = Object.assign({}, process.env, {
+  HOME: tmp, USER: 'tester', LOGNAME: 'tester', PG_TEST_VAR: 'v$1`x`',
+  VIRTUAL_ENV: path.join(tmp, 'proj', '.venv'), VIRTUAL_ENV_PROMPT: '(proj) ',
+  SSH_CONNECTION: '', SSH_TTY: '', LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8'
+});
+delete env.SSH_CONNECTION; delete env.SSH_TTY;
+
+function render(shell, code, status) {
+  const file = path.join(tmp, 'prompt.' + shell);
+  fs.writeFileSync(file, code);
+  let script, args;
+  if (shell === 'bash') { args = ['--norc', '--noprofile', '-c', 'source "$1"; __pg_status=' + status + '; printf "%s" "${PS1@P}"', 'x', file]; }
+  else if (shell === 'zsh') { args = ['-f', '-c', 'source "$1"; __pg_status=' + status + '; print -rnP -- "$PROMPT"', 'x', file]; }
+  else if (shell === 'fish') { args = ['--no-config', '-c', 'source $argv[1]; function __f; return ' + status + '; end; __f; fish_prompt', file]; }
+  else {
+    fs.renameSync(file, file + '.ps1');
+    args = ['-NoProfile', '-NonInteractive', '-Command', '. "' + file + '.ps1"; bash -c "exit ' + status + '"; [Console]::Out.Write((prompt))'];
+  }
+  const r = spawnSync(shell === 'pwsh' ? PWSH : shell, args, { cwd: repo, env, encoding: 'utf8' });
+  if (r.status !== 0 && r.stderr) throw new Error(shell + ' failed: ' + r.stderr);
+  if (r.stderr) throw new Error(shell + ' stderr: ' + r.stderr);
+  // bash leaves \001/\002 around non-printing sequences; zsh's %{ %} vanish. Normalize.
+  return r.stdout.replace(/[\x01\x02]/g, '');
+}
+
+/* Times change between shell runs, so pin every time field to the year. */
+function stable(els) { return els.map((e) => { const c = JSON.parse(JSON.stringify(e)); if (c.field === 'time') c.props.fmt = '%Y'; return c; }); }
+
+const stress = [
+  M.make('text', { text: "q'u\"o$HOME`id`\\n%{x}%% ", fg: '#ff0000', bold: true, italic: true }),
+  M.make('field', { field: 'user', underline: true }), M.make('text', { text: '@' }), M.make('field', { field: 'host', reverse: true }),
+  M.make('field', { field: 'cwd', bg: '#123456' }), M.make('text', { text: ' ' }), M.make('field', { field: 'cwdBase', dim: true }),
+  M.make('text', { text: ' ' }), M.make('field', { field: 'cwdTrim', props: { depth: 2 } }), M.make('field', { field: 'cwdAbs', strike: true }),
+  M.make('field', { field: 'git', props: { pre: " ('$x", suf: '`)' } }), M.make('field', { field: 'gitDirty', props: { text: ' *%' } }),
+  M.make('field', { field: 'venv', props: { pre: '[', suf: ']' } }),
+  M.make('field', { field: 'env', props: { name: 'PG_TEST_VAR', pre: '<', suf: '>' } }),
+  M.make('field', { field: 'env', props: { name: 'PG_UNSET_VAR', pre: '<', suf: '>' } }),
+  M.make('field', { field: 'ssh', props: { text: 'SSH ' } }),
+  M.make('field', { field: 'cmd', props: { cmd: 'echo a%sb' } }),
+  M.make('field', { field: 'time', props: { fmt: '%Y' } }),
+  M.make('newline'),
+  M.make('field', { field: 'exit', fg: '#00ff00', props: { tpl: 'rc={code}{code}', hideOk: false, failFg: '#ff5555', failBg: '#220000' } }),
+  M.make('field', { field: 'exit', props: { tpl: " ✘'{code}", hideOk: true } }),
+  M.make('field', { field: 'jobs' }), M.make('field', { field: 'promptChar', blink: true }), M.make('text', { text: ' ' })
+];
+
+const cases = [{ name: 'stress prompt', els: stress }].concat(PG.presets.map((p) => ({ name: 'preset: ' + p.name, els: stable(p.build()) })));
+if (shells.length) {
+  for (const c of cases) {
+    for (const mode of ['truecolor', '256', '16']) {
+      if (mode !== 'truecolor' && c.name !== 'stress prompt') continue;
+      test(c.name + ' [' + mode + '] renders identically in ' + shells.join(', '), () => {
+        for (const status of [0, 3]) {
+          const out = {};
+          for (const sh of shells) out[sh] = render(sh, PG.gen.generate(sh, c.els, mode), status);
+          const ref = out[shells[0]];
+          for (const sh of shells) assert.strictEqual(JSON.stringify(out[sh]), JSON.stringify(ref), 'status ' + status + ': ' + sh + ' differs from ' + shells[0]);
+          assert.ok(ref.length > 0, 'empty prompt');
+        }
+      });
+    }
+  }
+  test('stress prompt shows the expected text (bash)', () => {
+    const plain = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
+    const ok = plain(render(shells[0], PG.gen.generate(shells[0], stress, 'truecolor'), 0));
+    const bad = plain(render(shells[0], PG.gen.generate(shells[0], stress, 'truecolor'), 3));
+    assert.ok(ok.startsWith("q'u\"o$HOME`id`\\n%{x}%% " + os.userInfo().username + '@'), ok);
+    assert.ok(ok.includes("~/work/my repo/project"), ok);
+    assert.ok(ok.includes(" ('$xfeature/x`) *%[proj]<v$1`x`>a%sb"), ok);
+    assert.ok(ok.includes('\nrc=00'), ok);
+    assert.ok(!ok.includes('✘'), 'hide-on-success exit code shown: ' + ok);
+    assert.ok(bad.includes("\nrc=33 ✘'3"), bad);
+  });
+  test('exit code uses failure colors only on non-zero status', () => {
+    const els = [M.make('field', { field: 'exit', fg: '#00ff00', props: { tpl: '{code}', failFg: '#ff0000' } })];
+    for (const sh of shells) {
+      assert.ok(render(sh, PG.gen.generate(sh, els), 0).includes('38;2;0;255;0m0'), sh + ' success');
+      assert.ok(render(sh, PG.gen.generate(sh, els), 1).includes('38;2;255;0;0m1'), sh + ' failure');
+    }
+  });
+}
+
+test('PowerShell output is well-formed', () => {
+  for (const c of cases) {
+    const code = PG.gen.generate('pwsh', c.els);
+    assert.ok(/function prompt \{[\s\S]*return \$o\n\}/.test(code), c.name);
+    const opens = (code.match(/\{/g) || []).length, closes = (code.match(/\}/g) || []).length;
+    // Braces inside single-quoted strings are balanced in our templates, so the totals must match.
+    assert.strictEqual(opens, closes, c.name + ' has unbalanced braces');
+  }
+});
+if (has(PWSH)) {
+  test('PowerShell parses the generated code', () => {
+    for (const c of cases) {
+      const file = path.join(tmp, 'p.ps1');
+      fs.writeFileSync(file, PG.gen.generate('pwsh', c.els));
+      const r = spawnSync(PWSH, ['-NoProfile', '-Command', '$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile("' + file + '", [ref]$null, [ref]$e); if ($e.Count) { $e | % { $_.Message }; exit 1 }'], { encoding: 'utf8' });
+      assert.strictEqual(r.status, 0, c.name + ': ' + r.stdout);
+    }
+  });
+} else { skipped++; console.log('  - skipped PowerShell parse check (pwsh not installed)'); }
+
+fs.rmSync(tmp, { recursive: true, force: true });
+console.log('\n' + passed + ' passed, ' + failed + ' failed' + (skipped ? ', ' + skipped + ' skipped' : ''));
+process.exit(failed ? 1 : 0);

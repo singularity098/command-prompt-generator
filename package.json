@@ -1,0 +1,8 @@
+{
+  "name": "prompt-generator",
+  "private": true,
+  "description": "Browser-based visual builder for shell prompts. No dependencies; open index.html.",
+  "scripts": {
+    "test": "node tests/run.js"
+  }
+}

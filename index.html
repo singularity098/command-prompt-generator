@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Design a custom shell prompt visually for bash, zsh, fish and PowerShell.">
+  <title>Prompt Generator</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151821'/%3E%3Cpath d='M8 10l6 6-6 6' stroke='%23a78bfa' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M17 22h7' stroke='%2322d3ee' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">❯_</span>
+      <span class="brand-name">Prompt Generator</span>
+    </div>
+    <div class="seg" id="shell-tabs" role="tablist" aria-label="Target shell"></div>
+    <div class="top-actions">
+      <button class="btn" id="btn-presets" title="Browse presets" aria-label="Presets"><span aria-hidden="true">✦</span><span class="lbl"> Presets</span></button>
+      <button class="btn" id="btn-import" title="Import an existing PS1 / PROMPT" aria-label="Import"><span aria-hidden="true">⇩</span><span class="lbl"> Import</span></button>
+      <button class="btn icon" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
+      <button class="btn icon" id="btn-redo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</button>
+      <button class="btn icon" id="btn-share" title="Copy a shareable link" aria-label="Copy share link">🔗</button>
+      <button class="btn icon" id="btn-clear" title="Clear the prompt" aria-label="Clear">⌫</button>
+      <button class="btn icon" id="btn-theme" title="Toggle light / dark" aria-label="Toggle theme">☀</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel palette" aria-label="Elements">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="fields" role="tab">Fields</button>
+        <button class="tab" data-tab="symbols" role="tab">Symbols</button>
+      </div>
+      <input type="search" id="palette-search" class="input" placeholder="Search elements…" aria-label="Search elements">
+      <div id="palette-fields" class="palette-body"></div>
+      <div id="palette-symbols" class="palette-body" hidden>
+        <div class="custom-symbol">
+          <input type="text" id="custom-text" class="input" placeholder="Custom text…" maxlength="64" aria-label="Custom text">
+          <button class="btn small" id="btn-add-text">Add</button>
+        </div>
+      </div>
+      <p class="hint">Drag into the editor, or tap to add. On touch screens, press and hold to drag.</p>
+    </aside>
+
+    <section class="panel editor-panel" aria-label="Prompt editor">
+      <div class="panel-head">
+        <h2>Editor</h2>
+        <div class="head-actions">
+          <button class="btn small toggle" id="btn-multi" aria-pressed="false" title="Tap elements to add them to the selection">Multi-select</button>
+          <button class="btn small" id="btn-select-all">All</button>
+          <button class="btn small" id="btn-select-none">None</button>
+        </div>
+      </div>
+      <div id="editor" class="editor" tabindex="0" aria-label="Prompt elements. Arrow keys change selection, Delete removes, Alt+Arrow moves."></div>
+      <p class="hint editor-hint">Click to select · Shift/Ctrl+click for several · drag to reorder · drag out to remove</p>
+    </section>
+
+    <section class="panel preview-panel" aria-label="Preview">
+      <div class="panel-head">
+        <h2>Preview</h2>
+        <div class="head-actions">
+          <label class="color-chip" title="Terminal background"><input type="color" id="term-bg" aria-label="Terminal background"><span>BG</span></label>
+          <label class="color-chip" title="Terminal text"><input type="color" id="term-fg" aria-label="Terminal text color"><span>FG</span></label>
+          <button class="btn small" id="btn-term-reset" title="Reset terminal colors">Reset</button>
+        </div>
+      </div>
+      <div class="terminal" id="terminal">
+        <div class="term-bar">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="term-title" id="term-title"></span>
+        </div>
+        <pre class="term-body" id="term-body" aria-live="polite"></pre>
+      </div>
+      <details class="sim">
+        <summary>Preview environment</summary>
+        <div class="sim-grid" id="sim-form"></div>
+      </details>
+    </section>
+
+    <aside class="panel inspector" aria-label="Inspector">
+      <div id="inspector"></div>
+
+      <div class="tool" id="tool-hue">
+        <div class="tool-head"><h3>Hue shift</h3><span class="badge" id="hue-value">0°</span></div>
+        <input type="range" id="hue" min="-180" max="180" value="0" step="1" class="hue-slider" aria-label="Hue shift">
+        <div class="row gap">
+          <label class="check"><input type="checkbox" id="hue-fg" checked> Text</label>
+          <label class="check"><input type="checkbox" id="hue-bg" checked> Background</label>
+          <span class="muted small" id="hue-scope"></span>
+        </div>
+      </div>
+
+      <div class="tool" id="tool-gradient">
+        <div class="tool-head"><h3>Gradient</h3><span class="muted small" id="grad-scope"></span></div>
+        <div class="grad-bar" id="grad-bar"></div>
+        <div class="grad-stops" id="grad-stops"></div>
+        <div class="grad-presets" id="grad-presets"></div>
+        <div class="row gap wrap">
+          <div class="seg small" id="grad-layer">
+            <button data-v="fg" class="active">Text</button><button data-v="bg">Background</button>
+          </div>
+          <div class="seg small" id="grad-by">
+            <button data-v="chars" class="active">By width</button><button data-v="elements">By element</button>
+          </div>
+          <select id="grad-space" class="input small" aria-label="Interpolation">
+            <option value="oklab">OKLab</option><option value="hsl">HSL</option><option value="rgb">RGB</option>
+          </select>
+        </div>
+        <div class="row gap">
+          <button class="btn small" id="grad-add">+ Stop</button>
+          <button class="btn small" id="grad-reverse">⇄ Reverse</button>
+          <button class="btn small primary" id="grad-apply">Apply gradient</button>
+        </div>
+      </div>
+    </aside>
+
+    <section class="panel output-panel" aria-label="Output">
+      <div class="panel-head">
+        <h2>Output</h2>
+        <div class="head-actions">
+          <select id="color-mode" class="input small" aria-label="Color mode">
+            <option value="truecolor">Truecolor (24-bit)</option>
+            <option value="256">256 colors</option>
+            <option value="16">16 colors (ANSI)</option>
+          </select>
+        </div>
+      </div>
+      <p class="install" id="install-hint"></p>
+      <pre class="code" id="code" tabindex="0"></pre>
+      <div class="row gap">
+        <button class="btn primary" id="btn-copy"><span aria-hidden="true">⧉</span> Copy</button>
+        <button class="btn" id="btn-download"><span aria-hidden="true">⤓</span> Download .txt</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="modal-presets" hidden role="dialog" aria-modal="true" aria-labelledby="presets-title">
+    <div class="modal-card wide">
+      <div class="modal-head"><h2 id="presets-title">Presets</h2><button class="btn icon" data-close aria-label="Close">✕</button></div>
+      <div class="preset-grid" id="preset-grid"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-import" hidden role="dialog" aria-modal="true" aria-labelledby="import-title">
+    <div class="modal-card">
+      <div class="modal-head"><h2 id="import-title">Import a prompt</h2><button class="btn icon" data-close aria-label="Close">✕</button></div>
+      <p class="muted">Paste a bash <code>PS1</code> or zsh <code>PROMPT</code>, with or without the <code>PS1=</code> part. Tip: run <code>echo "$PS1"</code> in your shell to see your current one.</p>
+      <textarea id="import-text" class="input mono" rows="5" spellcheck="false" placeholder="PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '"></textarea>
+      <div class="row gap wrap">
+        <label class="muted small">Syntax
+          <select id="import-syntax" class="input small">
+            <option value="auto">Auto-detect</option><option value="bash">Bash (PS1)</option><option value="zsh">Zsh (PROMPT)</option>
+          </select>
+        </label>
+        <span class="muted small">Examples:</span>
+        <button class="btn small" data-example="debian">Debian</button>
+        <button class="btn small" data-example="robby">robbyrussell</button>
+        <button class="btn small" data-example="tput">tput + git</button>
+      </div>
+      <div id="import-msg" class="import-msg"></div>
+      <div class="row gap end">
+        <button class="btn" data-close>Cancel</button>
+        <button class="btn primary" id="btn-do-import">Import</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/color.js"></script>
+  <script src="js/fields.js"></script>
+  <script src="js/generate.js"></script>
+  <script src="js/importer.js"></script>
+  <script src="js/tools.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
