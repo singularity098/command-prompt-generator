@@ -487,7 +487,7 @@
   /* ---------------- inspector ---------------- */
   function colorField(label, layer, value, allowNone) {
     return '<div class="field"><span class="lbl">' + label + '</span>' +
-      '<div class="color-row"><input type="color" data-color="' + layer + '" value="' + (value || '#ffffff') + '" aria-label="' + label + '">' +
+      '<div class="color-row"><input type="color" data-color="' + layer + '" value="' + (value || (/bg$/i.test(layer) ? state.term.bg : state.term.fg)) + '" aria-label="' + label + '">' +
       (allowNone ? '<button class="btn small none-btn' + (value ? '' : ' on') + '" data-none="' + layer + '" title="Use the terminal default">Default</button>' : '') +
       '<code class="small">' + (value || 'default') + '</code></div>' +
       '<div class="swatches">' + SWATCHES.map((c) => '<button class="swatch" style="background:' + c + '" data-swatch="' + layer + '" data-c="' + c + '" title="' + c + '" aria-label="' + c + '"></button>').join('') + '</div></div>';

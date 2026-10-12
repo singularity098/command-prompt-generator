@@ -4,6 +4,10 @@ A visual builder for shell prompts that runs in the browser. Drag fields and sym
 
 It has no dependencies, no build step and no server. Open `index.html` in any modern desktop or mobile browser.
 
+![Prompt Generator on desktop](docs/screenshots/desktop.png)
+
+<p><img src="docs/screenshots/presets.png" alt="Preset gallery" width="68%"> <img src="docs/screenshots/mobile.png" alt="Prompt Generator on a phone" width="28%"></p>
+
 ## Features
 
 - **Drag-and-drop editor.** Drag elements in, drag to reorder, and drag out to remove. Works with mouse and touch: on touch screens, tap to add or press and hold to drag.
