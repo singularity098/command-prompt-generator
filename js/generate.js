@@ -41,6 +41,27 @@
   function durMinMs(p) { return Math.max(0, Math.round((parseFloat(p.min) || 0) * 1000)); }
   function durStyle(p) { return p.style === 'seconds' ? 'seconds' : 'auto'; }
 
+  /*
+   * A comment holding the whole design as JSON, so pasting a generated snippet back into Import
+   * restores it exactly (including fields the shell code alone can't describe, like exit colors).
+   */
+  var DESIGN_TAG = 'prompt-generator-design:';
+  function compactElement(el) {
+    var o = { kind: el.kind };
+    if (el.kind === 'text') o.text = el.text;
+    if (el.kind === 'field') { o.field = el.field; o.props = el.props; }
+    if (el.fg) o.fg = el.fg;
+    if (el.bg) o.bg = el.bg;
+    ['bold', 'dim', 'italic', 'underline', 'blink', 'reverse', 'strike'].forEach(function (k) { if (el[k]) o[k] = true; });
+    return o;
+  }
+  function designLine(left, right) {
+    var d = { v: 1, left: left.map(compactElement) };
+    if (right.length) d.right = right.map(compactElement);
+    // U+2028/2029 would end the comment line in some editors; keep the JSON on one line.
+    return '# ' + DESIGN_TAG + ' ' + JSON.stringify(d).replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  }
+
   function uses(lists, field) {
     return lists.some(function (l) { return l.some(function (e) { return e.field === field; }); });
   }
@@ -130,7 +151,7 @@
     var lines = bashLines(left, mode, ctx, true);
     var rps = right.length ? bashLines(right, mode, ctx, false).join('') : '';
 
-    var out = ['# >>> prompt-generator (bash) >>>'];
+    var out = ['# >>> prompt-generator (bash) >>>', designLine(left, right)];
     if (ctx.status) {
       if (ctx.duration) {
         out.push('# Command timing uses a DEBUG trap and $EPOCHREALTIME (bash 5+; whole seconds on older bash).');
@@ -244,7 +265,7 @@
     var ps = zshPrompt(left, mode, ctx);
     var rps = right.length ? zshPrompt(right, mode, ctx) : null;
 
-    var out = ['# >>> prompt-generator (zsh) >>>', 'setopt PROMPT_SUBST'];
+    var out = ['# >>> prompt-generator (zsh) >>>', designLine(left, right), 'setopt PROMPT_SUBST'];
     if (ctx.status) {
       if (ctx.duration) {
         out.push('zmodload zsh/datetime');
@@ -344,7 +365,7 @@
     var lbody = fishBody(left, mode, ctx);
     var rbody = right.length ? fishBody(right, mode, ctx) : null;
 
-    var out = ['# >>> prompt-generator (fish) >>>'];
+    var out = ['# >>> prompt-generator (fish) >>>', designLine(left, right)];
     if (ctx.venv) out.push('set -gx VIRTUAL_ENV_DISABLE_PROMPT 1');
     if (ctx.trim) {
       out.push('function __pg_cwd_trim');
@@ -458,7 +479,7 @@
     var lbody = pwshBody(left, mode, ctx, '$o');
     var rbody = right.length ? pwshBody(right, mode, ctx, '$r') : null;
 
-    var out = ['# >>> prompt-generator (PowerShell) >>>'];
+    var out = ['# >>> prompt-generator (PowerShell) >>>', designLine(left, right)];
     if (ctx.venv) out.push('$env:VIRTUAL_ENV_DISABLE_PROMPT = 1');
     if (ctx.trim) {
       out.push('function __pg_cwd_trim([int]$n) {');
@@ -523,5 +544,5 @@
     }
   }
 
-  PG.gen = { SHELLS: SHELLS, generate: generate, sgrParams: sgrParams };
+  PG.gen = { SHELLS: SHELLS, generate: generate, sgrParams: sgrParams, DESIGN_TAG: DESIGN_TAG };
 })(typeof window !== 'undefined' ? (window.PG = window.PG || {}) : (globalThis.PG = globalThis.PG || {}));

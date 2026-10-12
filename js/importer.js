@@ -13,7 +13,16 @@
     var m = s.match(/^(?:export\s+|typeset\s+|declare\s+(?:-\w+\s+)?|local\s+)?(PS1|PROMPT|PS2|RPROMPT|RPS1)\s*=\s*([\s\S]*)$/);
     if (m) return unquoteWord(m[2]);
     if (/^(\$'|'|")/.test(s)) return unquoteWord(s);
+    // A whole snippet or rc file: use its PS1= / PROMPT= line.
+    var line = s.match(/^[ \t]*(?:export\s+)?(?:PS1|PROMPT)\s*=\s*(.*)$/m);
+    if (line) return unquoteWord(line[1]);
     return s;
+  }
+
+  /* Value of a `NAME=...` assignment anywhere in the text, or null. */
+  function assignment(s, name) {
+    var m = String(s).match(new RegExp('^[ \\t]*(?:export\\s+)?' + name + '\\s*=\\s*(.*)$', 'm'));
+    return m ? unquoteWord(m[1]) : null;
   }
 
   function ansiC(body) {
@@ -37,8 +46,25 @@
   }
 
   /* Parse one shell word made of '..', "..", $'..' and bare segments. Stops at unquoted whitespace/;/#. */
-  function unquoteWord(s) {
-    var out = '', i = 0;
+  function unquoteWord(s) { return readWord(s, 0)[0]; }
+
+  /* Split a simple command line into unquoted words. */
+  function shellWords(s) {
+    var words = [], i = 0;
+    while (i < s.length) {
+      while (i < s.length && /\s/.test(s[i])) i++;
+      if (i >= s.length || s[i] === ';') break;
+      var r = readWord(s, i);
+      words.push(r[0]);
+      if (r[1] === i) break;
+      i = r[1];
+    }
+    return words;
+  }
+
+  /* Read one shell word starting at i. Returns [value, endIndex]. */
+  function readWord(s, i) {
+    var out = '';
     while (i < s.length) {
       var c = s[i];
       if (c === "'") {
@@ -62,7 +88,7 @@
         out += s[i + 1]; i += 2;
       } else { out += c; i++; }
     }
-    return out;
+    return [out, i];
   }
 
   /* ---------- style state ---------- */
@@ -119,6 +145,8 @@
     this.buf = '';
     this.warnings = [];
     this.pendingFail = undefined; // zsh %(?.a.b): fail color for the next text run
+    this.fns = {};                // __pg_fN bodies from a Prompt Generator snippet
+    this.exitFail = null;         // failure SGR from __pg_exit_sgr, used by the next __pg_exit_text
   }
   Builder.prototype.styled = function (el) {
     var st = this.st;
@@ -164,6 +192,8 @@
   /* Map a command substitution to a field, or treat it as a style change (tput). */
   function handleCommand(b, cmd) {
     var c = cmd.trim();
+    var gen = c.match(/^__pg_(f\d+|rprompt)$/);
+    if (gen) { if (gen[1] !== 'rprompt') handleGenerated(b, c); return; }
     var tput = c.match(/^tput\s+(\w+)(?:\s+(\d+))?$/);
     if (tput) {
       var cap = tput[1], n = tput[2] != null ? parseInt(tput[2], 10) : null;
@@ -195,6 +225,67 @@
     if (/vcs_info|git\s+(branch|symbolic-ref|rev-parse)/.test(c)) { b.field('git', { pre: '', suf: '' }); return; }
     if (/git\s+(status|diff)/.test(c)) { b.field('gitDirty', { text: '*' }); return; }
     b.field('cmd', { cmd: c, sample: '…' });
+  }
+
+  /* Read the __pg_fN() { ... } helpers out of a Prompt Generator snippet (bash or zsh). */
+  function generatedFunctions(text) {
+    var fns = {}, re = /^(__pg_f\d+)\(\) \{ ([\s\S]*?); \}$/gm, m;
+    while ((m = re.exec(String(text)))) {
+      var body = m[2];
+      // zsh wraps each helper to double any % in its output.
+      var z = body.match(/^local o; o=\$\( ([\s\S]*)\n\); print -rn -- "\$\{o\/\/\\%\/%%\}"$/);
+      fns[m[1]] = z ? z[1] : body;
+    }
+    return fns;
+  }
+
+  function sgrStyle(params) { var st = blankStyle(); applySgr(st, params || ''); return st; }
+
+  /* Turn one generated helper call back into the field it came from. */
+  function handleGenerated(b, name) {
+    var body = b.fns[name];
+    if (body == null) {
+      if (!b.warnedGenerated) {
+        b.warnedGenerated = true;
+        b.warnings.push('This prompt was made by Prompt Generator. Paste the whole snippet (or the downloaded file), not just $PS1, to restore its exit code, git and other dynamic fields.');
+      }
+      b.field('cmd', { cmd: name, sample: '' });
+      return;
+    }
+    body = body.trim();
+    var w = shellWords(body), m;
+    switch (w[0]) {
+      case '__pg_exit_sgr':
+        b.style(function (st) { applySgr(st, w[1] || ''); });
+        b.exitFail = w[2] || '';
+        return;
+      case '__pg_exit_text': {
+        var fail = sgrStyle(b.exitFail);
+        b.exitFail = null;
+        b.field('exit', { tpl: w[1] || '', hideOk: w[2] === '1', failFg: fail.fg, failBg: fail.bg });
+        return;
+      }
+      case '__pg_git': b.field('git', { pre: w[1] || '', suf: w[2] || '' }); return;
+      case '__pg_git_dirty': b.field('gitDirty', { text: w[1] || '' }); return;
+      case '__pg_venv': b.field('venv', { pre: w[1] || '', suf: w[2] || '' }); return;
+      case '__pg_cwd_trim': b.field('cwdTrim', { depth: parseInt(w[1], 10) || 2 }); return;
+      case '__pg_duration':
+        b.field('duration', { min: (parseInt(w[1], 10) || 0) / 1000, style: w[2] === 'seconds' ? 'seconds' : 'auto', pre: w[3] || '', suf: w[4] || '' });
+        return;
+    }
+    if ((m = body.match(/^\[\[? -n "\$SSH_CONNECTION\$SSH_TTY" \]\]? && printf '%s' ([\s\S]*); return 0$/))) {
+      b.field('ssh', { text: unquoteWord(m[1]) });
+      return;
+    }
+    if ((m = body.match(/^\[\[? -n "\$\{(\w+)\}" \]\]? && printf '%s%s%s' ([\s\S]*) "\$\{\w+\}" ([\s\S]*); return 0$/))) {
+      b.field('env', { name: m[1], pre: unquoteWord(m[2]), suf: unquoteWord(m[3]), sample: m[1].toLowerCase() });
+      return;
+    }
+    if ((m = body.match(/^\{ ([\s\S]*)\n\} 2>\/dev\/null \| tr -d '\\n'$/))) {
+      b.field('cmd', { cmd: m[1], sample: '…' });
+      return;
+    }
+    b.field('cmd', { cmd: body, sample: '…' });
   }
 
   var VAR_FIELDS = { PWD: 'cwdAbs', USER: 'user', LOGNAME: 'user', HOSTNAME: 'host', HOST: 'host', VIRTUAL_ENV: 'venv', CONDA_DEFAULT_ENV: 'venv', BASH_VERSION: 'shellVer', ZSH_VERSION: 'shellVer' };
@@ -275,12 +366,17 @@
   var BASH_SIMPLE = { u: 'user', h: 'host', H: 'fqdn', w: 'cwd', W: 'cwdBase', j: 'jobs', l: 'tty', s: 'shell', v: 'shellVer', V: 'shellVer', '!': 'history', '#': 'history', $: 'promptChar' };
   var BASH_TIME = { t: '%H:%M:%S', T: '%I:%M:%S', '@': '%I:%M %p', A: '%H:%M', d: '%a %b %d' };
 
-  function parseBash(s) {
+  function parseBash(s, fns) {
     var b = new Builder(), i = 0;
+    b.fns = fns || {};
     while (i < s.length) {
       var c = s[i];
       if (c === '\\' && i + 1 < s.length) {
         var n = s[i + 1];
+        // Bash decodes the prompt (\\ -> \), then expansion unescapes \$ \` \\. So four backslashes
+        // are one backslash, two backslashes + $ a dollar, two + ` a backtick (check: echo "${PS1@P}").
+        if (s.startsWith('\\\\\\\\', i)) { b.text('\\'); i += 4; continue; }
+        if (s.startsWith('\\\\$', i) || s.startsWith('\\\\`', i)) { b.text(s[i + 2]); i += 3; continue; }
         if (BASH_SIMPLE[n]) { b.field(BASH_SIMPLE[n]); i += 2; continue; }
         if (BASH_TIME[n]) { b.field('time', { fmt: BASH_TIME[n] }); i += 2; continue; }
         if (n === 'D' && s[i + 2] === '{') {
@@ -436,8 +532,9 @@
     parseZshInto(b, t.a);
   }
 
-  function parseZsh(s) {
+  function parseZsh(s, fns) {
     var b = new Builder();
+    b.fns = fns || {};
     parseZshInto(b, s);
     return b.done();
   }
@@ -449,11 +546,41 @@
   }
 
   /* Public entry point. syntax: 'auto' | 'bash' | 'zsh'. */
+  /* Rebuild elements from a `# prompt-generator-design: {...}` comment. */
+  function fromDesign(list) {
+    return (Array.isArray(list) ? list : []).map(function (d) {
+      if (!d || (d.kind !== 'text' && d.kind !== 'field' && d.kind !== 'newline')) return null;
+      if (d.kind === 'field' && !M.FIELDS[d.field]) return null;
+      var opts = { text: d.text, field: d.field, props: d.props || {}, fg: d.fg || null, bg: d.bg || null };
+      M.STYLE_KEYS.forEach(function (k) { opts[k] = !!d[k]; });
+      return M.make(d.kind, opts);
+    }).filter(Boolean);
+  }
+
   function importPrompt(input, syntax) {
+    var text = String(input);
+    var design = text.match(/^[ \t]*#\s*prompt-generator-design:\s*(\{.*\})\s*$/m);
+    if (design) {
+      try {
+        var d = JSON.parse(design[1]);
+        return { elements: fromDesign(d.left), right: fromDesign(d.right), warnings: [], syntax: 'design', exact: true };
+      } catch (e) { /* fall through to parsing the code */ }
+    }
+    var fns = generatedFunctions(text);
     var value = extractValue(input);
     var kind = !syntax || syntax === 'auto' ? detect(value) : syntax;
-    var res = kind === 'zsh' ? parseZsh(value) : parseBash(value);
+    if (kind === 'auto' || (!syntax || syntax === 'auto')) {
+      if (/^[ \t]*PROMPT=\$'/m.test(text) || /^setopt PROMPT_SUBST$/m.test(text)) kind = 'zsh';
+    }
+    var res = kind === 'zsh' ? parseZsh(value, fns) : parseBash(value, fns);
     res.syntax = kind;
+    // A whole Prompt Generator snippet also carries the right prompt.
+    var rvalue = kind === 'zsh' ? assignment(text, 'RPROMPT') : assignment(text, '__pg_rps1');
+    if (rvalue != null && /^[ \t]*(?:PS1|PROMPT)\s*=/m.test(text)) {
+      var r = kind === 'zsh' ? parseZsh(rvalue, fns) : parseBash(rvalue, fns);
+      res.right = r.elements.filter(function (e) { return e.kind !== 'newline'; });
+      res.warnings = res.warnings.concat(r.warnings);
+    }
     if (/^\s*(?:export\s+|typeset\s+)?(RPROMPT|RPS1)\s*=/.test(String(input))) res.target = 'right';
     if (!res.elements.length) res.warnings.push('Nothing to import.');
     return res;

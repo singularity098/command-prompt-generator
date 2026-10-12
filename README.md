@@ -26,7 +26,7 @@ It has no dependencies, no build step and no server. Open `index.html` in any mo
   - Development: git branch, git dirty marker, Python venv/conda, Node version, kube context, AWS profile.
   - System: shell name and version, TTY, any environment variable, any command's output.
 - **Symbols.** Prompt arrows, punctuation, box drawing, Powerline/Nerd Font glyphs (drawn in the preview even without the font) and emoji, plus free text.
-- **Import.** Paste an existing bash `PS1` or zsh `PROMPT`/`RPROMPT` and it becomes editable. Understands `\[\e[…m\]`, `\033`, `tput`, `\D{…}`, `$(__git_ps1)`, zsh `%F{…}`/`%B`/`%(?..)`, and oh-my-zsh `$fg[…]`.
+- **Import.** Paste an existing bash `PS1` or zsh `PROMPT`/`RPROMPT` and it becomes editable. Paste a snippet this app generated (any shell) and it comes back exactly as designed: every snippet carries a one-line `# prompt-generator-design:` comment. Older bash/zsh snippets without that line are rebuilt from their helper functions. Understands `\[\e[…m\]`, `\033`, `tput`, `\D{…}`, `$(__git_ps1)`, zsh `%F{…}`/`%B`/`%(?..)`, and oh-my-zsh `$fg[…]`.
 - **Export.** Copy to the clipboard or download as a `.txt` file. Output can be truecolor, 256-color or 16-color ANSI.
 - **17 presets.** Debian, Fedora, Kali, Robby Russell, Pure, Agnoster, Starship-style, Dracula, Nord, Gruvbox, a two-sided prompt, and more.
 - **Extras.** Undo/redo, keyboard shortcuts, share links (the prompt is encoded in the URL), dark theme by default with a light theme, and autosave in the browser.

@@ -242,6 +242,52 @@ if (shells.length) {
   });
 }
 
+console.log('round-trip import');
+const noDesign = (code) => code.split('\n').filter((l) => !l.includes(PG.gen.DESIGN_TAG)).join('\n');
+const bare = (list) => JSON.stringify((list || []).map((e) => { const c = Object.assign({}, e); delete c.id; return c; }));
+test('a generated snippet imports back exactly (design line), every shell', () => {
+  for (const c of cases) {
+    for (const sh of ['bash', 'zsh', 'fish', 'pwsh']) {
+      const r = PG.importer.importPrompt(PG.gen.generate(sh, c.left, 'truecolor', c.right));
+      assert.ok(r.exact, c.name + ' ' + sh + ': design line not used');
+      assert.strictEqual(bare(r.elements), bare(c.left), c.name + ' ' + sh + ' (left)');
+      assert.strictEqual(bare(r.right), bare(c.right.filter((e) => e.kind !== 'newline')), c.name + ' ' + sh + ' (right)');
+    }
+  }
+});
+test('older snippets without the design line still import to the same prompt (bash, zsh)', () => {
+  for (const c of cases) {
+    for (const sh of ['bash', 'zsh']) {
+      for (const mode of ['truecolor', '256']) {
+        const code = noDesign(PG.gen.generate(sh, c.left, mode, c.right));
+        const r = PG.importer.importPrompt(code);
+        assert.ok(!r.exact);
+        assert.deepStrictEqual(r.warnings, [], c.name + ' ' + sh);
+        // Adjacent texts may merge and colors come back quantized, so compare the regenerated code.
+        assert.strictEqual(noDesign(PG.gen.generate(sh, r.elements, mode, r.right || [])), code, c.name + ' ' + sh + ' ' + mode);
+      }
+    }
+  }
+});
+test('exit code fields come back as exit code fields, with their failure colors', () => {
+  const els = [M.make('field', { field: 'exit', fg: '#00ff00', bold: true, props: { tpl: '✘ {code}', hideOk: true, failFg: '#ff0000', failBg: '#330000' } })];
+  for (const sh of ['bash', 'zsh']) {
+    const e = PG.importer.importPrompt(noDesign(PG.gen.generate(sh, els))).elements[0];
+    assert.strictEqual(e.field, 'exit', sh);
+    assert.deepStrictEqual([e.fg, e.bold, e.props.tpl, e.props.hideOk, e.props.failFg, e.props.failBg], ['#00ff00', true, '✘ {code}', true, '#ff0000', '#330000'], sh);
+  }
+});
+test('pasting only $PS1 of a generated prompt explains what is missing', () => {
+  const code = noDesign(PG.gen.generate('bash', PG.presets.find((p) => p.name === 'Starship Style').build()));
+  const ps1 = code.split('\n').find((l) => l.startsWith('PS1='));
+  const r = PG.importer.importPrompt(ps1);
+  assert.ok(r.warnings.some((w) => /whole snippet/.test(w)), JSON.stringify(r.warnings));
+});
+test('bash escapes: \\\\ \\$ \\` are a literal backslash, dollar and backtick', () => {
+  const r = PG.importer.importPrompt("PS1='a\\\\\\\\b\\\\$c\\\\`d'");
+  assert.strictEqual(r.elements.map((e) => e.text).join(''), 'a\\b$c`d');
+});
+
 test('PowerShell output is well-formed', () => {
   for (const c of cases) {
     const code = PG.gen.generate('pwsh', c.left, 'truecolor', c.right);

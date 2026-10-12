@@ -859,23 +859,31 @@
     let res;
     try { res = PG.importer.importPrompt(text, $('#import-syntax').value); } catch (e) { res = { elements: [], warnings: ['Could not parse: ' + e.message] }; }
     if (!res.elements.length) { msg.className = 'import-msg err'; msg.textContent = res.warnings.join(' ') || 'Nothing recognized.'; return; }
-    const side = res.target === 'right' ? 'right' : 'left';
-    mutate(() => { if (side === 'right') state.right = res.elements.filter((e) => e.kind !== 'newline'); else state.elements = res.elements; ui.selected.clear(); });
-    setSide(side);
+    if (Array.isArray(res.right)) {
+      // A whole Prompt Generator snippet: restore both sides.
+      mutate(() => { state.elements = res.elements; state.right = res.right; ui.selected.clear(); });
+      setSide('left');
+    } else {
+      const side = res.target === 'right' ? 'right' : 'left';
+      mutate(() => { if (side === 'right') state.right = res.elements.filter((e) => e.kind !== 'newline'); else state.elements = res.elements; ui.selected.clear(); });
+      setSide(side);
+    }
     closeModal($('#modal-import'));
-    toast('Imported ' + res.elements.length + ' elements as ' + (res.syntax === 'zsh' ? 'zsh' : 'bash') + (res.warnings.length ? ' (' + res.warnings.length + ' warnings)' : ''), 'Undo', undo);
+    const n = res.elements.length + (res.right ? res.right.length : 0);
+    const how = res.exact ? 'Restored the exact design saved in the snippet' : 'Imported ' + n + ' elements as ' + (res.syntax === 'zsh' ? 'zsh' : 'bash');
+    toast(how + (res.warnings.length ? '. ' + res.warnings[0] : ''), 'Undo', undo, res.warnings.length ? 9000 : 0);
   }
 
   /* ---------------- toast ---------------- */
   let toastTimer = null;
-  function toast(text, actionLabel, action) {
+  function toast(text, actionLabel, action, ms) {
     const t = $('#toast');
     t.innerHTML = esc(text) + (actionLabel ? ' <button class="btn small" style="margin-left:10px;pointer-events:auto">' + esc(actionLabel) + '</button>' : '');
     if (actionLabel) $('button', t).addEventListener('click', () => { action(); t.classList.remove('show'); });
     t.style.pointerEvents = actionLabel ? 'auto' : 'none';
     t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), actionLabel ? 4500 : 2200);
+    toastTimer = setTimeout(() => t.classList.remove('show'), ms || (actionLabel ? 4500 : 2200));
   }
 
   /* ---------------- wiring ---------------- */
