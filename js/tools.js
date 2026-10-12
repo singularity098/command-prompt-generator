@@ -16,9 +16,9 @@
     return snap;
   }
 
-  /* Recolor from the snapshot: rotate hue by `deg`, then scale saturation by `sat` percent. */
-  function applyAdjust(targets, snap, deg, sat, layers) {
-    function adj(hex) { return C.adjustSaturation(C.shiftHue(hex, deg), sat); }
+  /* Recolor from the snapshot: rotate hue by `deg`, then scale saturation and brightness by percents. */
+  function applyAdjust(targets, snap, deg, sat, layers, light) {
+    function adj(hex) { return C.adjustBrightness(C.adjustSaturation(C.shiftHue(hex, deg), sat), light || 0); }
     targets.forEach(function (el) {
       var s = snap[el.id];
       if (!s) return;

@@ -78,6 +78,18 @@
     return rgbToHex(hslToRgb(hsl));
   }
 
+  /*
+   * Scale lightness by pct in [-100, 100]: negative moves toward black (-100 = black),
+   * positive toward white (100 = white). Hue and saturation are kept.
+   */
+  function adjustBrightness(hex, pct) {
+    var rgb = hexToRgb(hex);
+    if (!rgb) return hex;
+    var hsl = rgbToHsl(rgb), d = clamp(pct, -100, 100) / 100;
+    hsl[2] = d < 0 ? hsl[2] * (1 + d) : hsl[2] + (1 - hsl[2]) * d;
+    return rgbToHex(hslToRgb(hsl));
+  }
+
   /* --- OKLab, for perceptually smooth gradients --- */
   function srgbToLinear(c) { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
   function linearToSrgb(c) { var v = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; return clamp(v, 0, 1) * 255; }
@@ -199,7 +211,7 @@
 
   PG.color = {
     clamp: clamp, hexToRgb: hexToRgb, rgbToHex: rgbToHex, normalizeHex: normalizeHex,
-    rgbToHsl: rgbToHsl, hslToRgb: hslToRgb, shiftHue: shiftHue, adjustSaturation: adjustSaturation, mix: mix, gradientAt: gradientAt,
+    rgbToHsl: rgbToHsl, hslToRgb: hslToRgb, shiftHue: shiftHue, adjustSaturation: adjustSaturation, adjustBrightness: adjustBrightness, mix: mix, gradientAt: gradientAt,
     ANSI16: ANSI16, ANSI_NAMES: ANSI_NAMES, XTERM256: XTERM256,
     nearest256: nearest256, nearest16: nearest16, quantize: quantize, colorSgr: colorSgr,
     contrastText: contrastText

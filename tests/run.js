@@ -48,6 +48,23 @@ test('hue and saturation combine from one snapshot and return to the original at
   PG.tools.applyAdjust(els, snap, 0, 0, { fg: true, bg: true });
   assert.deepStrictEqual([els[0].fg, els[0].bg, els[1].fg, els[1].props.failFg], ['#3b82f6', '#facc15', '#22c55e', '#ef4444']);
 });
+test('brightness: -100 is black, +100 is white, 0 is unchanged, hue is kept', () => {
+  const C = PG.color, hsl = (h) => C.rgbToHsl(C.hexToRgb(h));
+  assert.strictEqual(C.adjustBrightness('#3b82f6', -100), '#000000');
+  assert.strictEqual(C.adjustBrightness('#3b82f6', 100), '#ffffff');
+  assert.strictEqual(C.adjustBrightness('#3b82f6', 0), '#3b82f6');
+  const dark = C.adjustBrightness('#3b82f6', -40);
+  assert.ok(hsl(dark)[2] < hsl('#3b82f6')[2] && Math.abs(hsl(dark)[0] - hsl('#3b82f6')[0]) < 1.5, dark);
+  assert.ok(hsl(C.adjustBrightness('#808080', 50))[2] > 0.7, 'grays brighten too');
+});
+test('all three sliders combine and return to the original at 0/0/0', () => {
+  const els = [M.make('text', { text: 'a', fg: '#3b82f6', bg: '#facc15' })];
+  const snap = PG.tools.snapshot(els);
+  PG.tools.applyAdjust(els, snap, 45, -30, { fg: true, bg: true }, 60);
+  assert.notStrictEqual(els[0].fg, '#3b82f6');
+  PG.tools.applyAdjust(els, snap, 0, 0, { fg: true, bg: true }, 0);
+  assert.deepStrictEqual([els[0].fg, els[0].bg], ['#3b82f6', '#facc15']);
+});
 test('16 gradient presets with unique names and valid colors', () => {
   const g = PG.tools.GRADIENTS;
   assert.strictEqual(g.length, 16);
