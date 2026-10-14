@@ -4,6 +4,8 @@ A visual builder for shell prompts that runs in the browser. Drag fields and sym
 
 It has no dependencies, no build step and no server. Open `index.html` in any modern desktop or mobile browser.
 
+**Live app:** https://singularity098.github.io/command-prompt-generator/ (published by GitHub Pages after the tests pass on `main`).
+
 ![Command Prompt Generator on desktop](docs/screenshots/desktop.png)
 
 <p><img src="docs/screenshots/presets.png" alt="Preset gallery" width="68%"> <img src="docs/screenshots/mobile.png" alt="Command Prompt Generator on a phone" width="28%"></p>
@@ -43,6 +45,10 @@ It has no dependencies, no build step and no server. Open `index.html` in any mo
 **Using it as root:** the bash and zsh prompts rely on helper functions and hooks that are defined in your shell startup file. Child shells don't inherit those, so a root shell from `su` or `sudo -i` needs the snippet in root's own startup file too. Without that, root simply keeps its default prompt. (The bash snippet un-exports `PS1`, so an old `export PS1=...` can't leak a prompt into shells that can't run it.)
 
 The snippet is wrapped in `# >>> command-prompt-generator >>>` markers so it is easy to find and replace later (snippets made before the rename use `# >>> prompt-generator >>>`; Import understands both). It only defines the helpers the prompt uses.
+
+## Publishing (GitHub Pages)
+
+`.github/workflows/pages.yml` deploys the app (`index.html`, `css/`, `js/`, `LICENSE`) to GitHub Pages whenever the `test` workflow passes on `main`, and can also be run by hand from the Actions tab. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions**. Pages for a private repository needs a paid GitHub plan, and the published site is public.
 
 ## Development
 

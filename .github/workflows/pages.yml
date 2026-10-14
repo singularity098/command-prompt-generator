@@ -1,0 +1,42 @@
+name: pages
+
+# Publishes the app to GitHub Pages after the tests pass on main (or on demand).
+# One-time setup: repository Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+on:
+  workflow_run:
+    workflows: [test]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Deploy exactly the commit whose tests passed.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Collect the site files
+        run: |
+          mkdir _site
+          cp -r index.html css js LICENSE _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
