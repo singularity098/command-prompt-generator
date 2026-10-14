@@ -9,6 +9,12 @@
   const STORE_KEY = 'command-prompt-generator:v1';
   const OLD_STORE_KEYS = ['command-prompt-gen:v1', 'prompt-generator:v1']; // earlier names; read so saved work carries over
   const DEFAULT_TERM = { bg: '#0a0a0c', fg: '#d4d4d8' };
+  // Default preview colors per shell; PowerShell gets the classic Windows PowerShell console blue.
+  const SHELL_TERM = { pwsh: { bg: '#012456', fg: '#eeedf0' } };
+  function termDefaults(shell) { return Object.assign({}, SHELL_TERM[shell] || DEFAULT_TERM); }
+  function sameTerm(a, b) { return a.bg.toLowerCase() === b.bg.toLowerCase() && a.fg.toLowerCase() === b.fg.toLowerCase(); }
+  /* The preview follows the shell's default colors until the user picks their own. */
+  function isDefaultTerm(t) { return [DEFAULT_TERM].concat(Object.values(SHELL_TERM)).some((d) => sameTerm(t, d)); }
   const SWATCHES = ['#f4f4f5', '#a1a1aa', '#52525b', '#18181b', '#ef4444', '#f97316', '#facc15', '#a3e635',
     '#4ade80', '#2dd4bf', '#22d3ee', '#60a5fa', '#3b82f6', '#818cf8', '#a78bfa', '#c084fc', '#f472b6', '#fb7185'];
   const TAGS = {
@@ -74,6 +80,7 @@
       if (G.SHELLS[saved.shell]) state.shell = saved.shell;
       if (['truecolor', '256', '16'].includes(saved.colorMode)) state.colorMode = saved.colorMode;
       if (saved.term) Object.assign(state.term, saved.term);
+      if (isDefaultTerm(state.term)) state.term = termDefaults(state.shell);
       if (saved.sim) Object.assign(state.sim, saved.sim);
       if (saved.theme) state.theme = saved.theme;
       if (saved.grad && Array.isArray(saved.grad.stops)) Object.assign(state.grad, saved.grad);
@@ -92,6 +99,7 @@
         if (G.SHELLS[d.s]) state.shell = d.s;
         if (d.m) state.colorMode = d.m;
         if (d.t) Object.assign(state.term, d.t);
+        if (isDefaultTerm(state.term)) state.term = termDefaults(state.shell);
         history.replaceState(null, '', location.pathname + location.search);
         setTimeout(() => toast('Loaded shared prompt'), 300);
       } catch (e) { setTimeout(() => toast('That share link could not be read'), 300); }
@@ -813,6 +821,7 @@
     box.innerHTML = Object.keys(G.SHELLS).map((k) => '<button role="tab" data-shell="' + k + '" aria-selected="' + (k === state.shell) + '" class="' + (k === state.shell ? 'active' : '') + '">' + G.SHELLS[k].label + '</button>').join('');
     $$('button', box).forEach((b) => b.addEventListener('click', () => {
       state.shell = b.dataset.shell;
+      if (isDefaultTerm(state.term)) state.term = termDefaults(state.shell);
       renderShellTabs();
       renderEditor(); renderInspector(); renderPreview(); renderCode(); save();
     }));
@@ -1019,7 +1028,7 @@
 
     $('#term-bg').addEventListener('input', (e) => { state.term.bg = e.target.value; renderPreview(); renderEditor(); save(); });
     $('#term-fg').addEventListener('input', (e) => { state.term.fg = e.target.value; renderPreview(); renderEditor(); save(); });
-    $('#btn-term-reset').addEventListener('click', () => { state.term = Object.assign({}, DEFAULT_TERM); renderPreview(); renderEditor(); save(); });
+    $('#btn-term-reset').addEventListener('click', () => { state.term = termDefaults(state.shell); renderPreview(); renderEditor(); save(); });
 
     $('#color-mode').addEventListener('change', (e) => { state.colorMode = e.target.value; renderEditor(); renderPreview(); renderCode(); save(); });
     $('#btn-copy').addEventListener('click', () => {
