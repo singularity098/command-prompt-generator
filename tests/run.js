@@ -298,14 +298,16 @@ test('a generated snippet imports back exactly (design line), every shell', () =
     }
   }
 });
-test('snippets made before the rename (prompt-generator-design:) still import exactly', () => {
+test('snippets made under earlier names (prompt-generator, command-prompt-gen) still import exactly', () => {
   const c = cases.find((x) => x.name === 'preset: Two-Sided');
-  const code = PG.gen.generate('bash', c.left, 'truecolor', c.right).replace('# command-prompt-gen-design:', '# prompt-generator-design:').replace(/command-prompt-gen \(/g, 'prompt-generator (');
-  assert.ok(code.includes('# prompt-generator-design:'));
-  const r = PG.importer.importPrompt(code);
-  assert.ok(r.exact);
-  assert.strictEqual(bare(r.elements), bare(c.left));
-  assert.strictEqual(bare(r.right), bare(c.right));
+  for (const oldName of ['prompt-generator', 'command-prompt-gen']) {
+    const code = PG.gen.generate('bash', c.left, 'truecolor', c.right).split('command-prompt-generator').join(oldName);
+    assert.ok(code.includes('# ' + oldName + '-design:'));
+    const r = PG.importer.importPrompt(code);
+    assert.ok(r.exact, oldName);
+    assert.strictEqual(bare(r.elements), bare(c.left), oldName);
+    assert.strictEqual(bare(r.right), bare(c.right), oldName);
+  }
 });
 test('older snippets without the design line still import to the same prompt (bash, zsh)', () => {
   for (const c of cases) {

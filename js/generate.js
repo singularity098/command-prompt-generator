@@ -45,7 +45,7 @@
    * A comment holding the whole design as JSON, so pasting a generated snippet back into Import
    * restores it exactly (including fields the shell code alone can't describe, like exit colors).
    */
-  var DESIGN_TAG = 'command-prompt-gen-design:';
+  var DESIGN_TAG = 'command-prompt-generator-design:';
   function compactElement(el) {
     var o = { kind: el.kind };
     if (el.kind === 'text') o.text = el.text;
@@ -151,7 +151,7 @@
     var lines = bashLines(left, mode, ctx, true);
     var rps = right.length ? bashLines(right, mode, ctx, false).join('') : '';
 
-    var out = ['# >>> command-prompt-gen (bash) >>>', designLine(left, right)];
+    var out = ['# >>> command-prompt-generator (bash) >>>', designLine(left, right)];
     if (ctx.status) {
       if (ctx.duration) {
         out.push('# Command timing uses a DEBUG trap and $EPOCHREALTIME (bash 5+; whole seconds on older bash).');
@@ -188,7 +188,7 @@
     // PS1 depends on the functions above, which child shells (e.g. `su`) don't inherit. If an
     // older `export PS1=...` marked it for export, un-export it so those shells keep their own prompt.
     out.push('export -n PS1');
-    out.push('# <<< command-prompt-gen (bash) <<<');
+    out.push('# <<< command-prompt-generator (bash) <<<');
     return out.join('\n') + '\n';
   }
 
@@ -265,7 +265,7 @@
     var ps = zshPrompt(left, mode, ctx);
     var rps = right.length ? zshPrompt(right, mode, ctx) : null;
 
-    var out = ['# >>> command-prompt-gen (zsh) >>>', designLine(left, right), 'setopt PROMPT_SUBST'];
+    var out = ['# >>> command-prompt-generator (zsh) >>>', designLine(left, right), 'setopt PROMPT_SUBST'];
     if (ctx.status) {
       if (ctx.duration) {
         out.push('zmodload zsh/datetime');
@@ -285,7 +285,7 @@
     out = out.concat(ctx.fns);
     out.push("PROMPT=$'" + ps + "'");
     out.push(rps != null ? "RPROMPT=$'" + rps + "'" : "RPROMPT=''");
-    out.push('# <<< command-prompt-gen (zsh) <<<');
+    out.push('# <<< command-prompt-generator (zsh) <<<');
     return out.join('\n') + '\n';
   }
 
@@ -365,7 +365,7 @@
     var lbody = fishBody(left, mode, ctx);
     var rbody = right.length ? fishBody(right, mode, ctx) : null;
 
-    var out = ['# >>> command-prompt-gen (fish) >>>', designLine(left, right)];
+    var out = ['# >>> command-prompt-generator (fish) >>>', designLine(left, right)];
     if (ctx.venv) out.push('set -gx VIRTUAL_ENV_DISABLE_PROMPT 1');
     if (ctx.trim) {
       out.push('function __pg_cwd_trim');
@@ -402,7 +402,7 @@
     out.push('function fish_right_prompt');
     if (rbody) out = out.concat(head, rbody);
     out.push('end');
-    out.push('# <<< command-prompt-gen (fish) <<<');
+    out.push('# <<< command-prompt-generator (fish) <<<');
     return out.join('\n') + '\n';
   }
 
@@ -479,7 +479,7 @@
     var lbody = pwshBody(left, mode, ctx, '$o');
     var rbody = right.length ? pwshBody(right, mode, ctx, '$r') : null;
 
-    var out = ['# >>> command-prompt-gen (PowerShell) >>>', designLine(left, right)];
+    var out = ['# >>> command-prompt-generator (PowerShell) >>>', designLine(left, right)];
     if (ctx.venv) out.push('$env:VIRTUAL_ENV_DISABLE_PROMPT = 1');
     if (ctx.trim) {
       out.push('function __pg_cwd_trim([int]$n) {');
@@ -527,7 +527,7 @@
     }
     out.push('    return $o');
     out.push('}');
-    out.push('# <<< command-prompt-gen (PowerShell) <<<');
+    out.push('# <<< command-prompt-generator (PowerShell) <<<');
     return out.join('\n') + '\n';
   }
 
