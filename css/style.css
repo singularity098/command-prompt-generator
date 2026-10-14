@@ -74,6 +74,8 @@ h3 { font-size: 13px; margin: 0; font-weight: 650; }
   transition: background .15s, border-color .15s, transform .05s;
 }
 .btn:hover { background: var(--panel-3); border-color: var(--accent); }
+a.btn { text-decoration: none; }
+a.btn:focus-visible { outline: none; box-shadow: var(--focus); }
 .btn:active { transform: translateY(1px); }
 .btn:focus-visible, .input:focus-visible, .tab:focus-visible, .seg button:focus-visible { outline: none; box-shadow: var(--focus); }
 .btn.small { padding: 6px 9px; font-size: 12px; border-radius: 7px; }
