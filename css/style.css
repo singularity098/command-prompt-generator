@@ -1,4 +1,4 @@
-/* Prompt Generator — dark by default. */
+/* Command Prompt Gen — dark by default. */
 :root {
   --bg: #0b0d12;
   --bg-glow: radial-gradient(1200px 600px at 10% -10%, rgba(139, 92, 246, .14), transparent 60%),

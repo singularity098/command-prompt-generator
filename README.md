@@ -1,12 +1,12 @@
-# Prompt Generator
+# Command Prompt Gen
 
 A visual builder for shell prompts that runs in the browser. Drag fields and symbols into an editor, style each one, watch it in a live terminal preview, then copy the code for **bash**, **zsh**, **fish** or **PowerShell**.
 
 It has no dependencies, no build step and no server. Open `index.html` in any modern desktop or mobile browser.
 
-![Prompt Generator on desktop](docs/screenshots/desktop.png)
+![Command Prompt Gen on desktop](docs/screenshots/desktop.png)
 
-<p><img src="docs/screenshots/presets.png" alt="Preset gallery" width="68%"> <img src="docs/screenshots/mobile.png" alt="Prompt Generator on a phone" width="28%"></p>
+<p><img src="docs/screenshots/presets.png" alt="Preset gallery" width="68%"> <img src="docs/screenshots/mobile.png" alt="Command Prompt Gen on a phone" width="28%"></p>
 
 ## Features
 
@@ -26,7 +26,7 @@ It has no dependencies, no build step and no server. Open `index.html` in any mo
   - Development: git branch, git dirty marker, Python venv/conda, Node version, kube context, AWS profile.
   - System: shell name and version, TTY, any environment variable, any command's output.
 - **Symbols.** Prompt arrows, punctuation, box drawing, Powerline/Nerd Font glyphs (drawn in the preview even without the font) and emoji, plus free text.
-- **Import.** Paste an existing bash `PS1` or zsh `PROMPT`/`RPROMPT` and it becomes editable. Paste a snippet this app generated (any shell) and it comes back exactly as designed: every snippet carries a one-line `# prompt-generator-design:` comment. Older bash/zsh snippets without that line are rebuilt from their helper functions. Understands `\[\e[…m\]`, `\033`, `tput`, `\D{…}`, `$(__git_ps1)`, zsh `%F{…}`/`%B`/`%(?..)`, and oh-my-zsh `$fg[…]`.
+- **Import.** Paste an existing bash `PS1` or zsh `PROMPT`/`RPROMPT` and it becomes editable. Paste a snippet this app generated (any shell) and it comes back exactly as designed: every snippet carries a one-line `# command-prompt-gen-design:` comment. Older bash/zsh snippets without that line are rebuilt from their helper functions. Understands `\[\e[…m\]`, `\033`, `tput`, `\D{…}`, `$(__git_ps1)`, zsh `%F{…}`/`%B`/`%(?..)`, and oh-my-zsh `$fg[…]`.
 - **Export.** Copy to the clipboard or download as a `.txt` file. Output can be truecolor, 256-color or 16-color ANSI.
 - **17 presets.** Debian, Fedora, Kali, Robby Russell, Pure, Agnoster, Starship-style, Dracula, Nord, Gruvbox, a two-sided prompt, and more.
 - **Extras.** Undo/redo, keyboard shortcuts, share links (the prompt is encoded in the URL), dark theme by default with a light theme, and autosave in the browser.
@@ -42,7 +42,7 @@ It has no dependencies, no build step and no server. Open `index.html` in any mo
 
 **Using it as root:** the bash and zsh prompts rely on helper functions and hooks that are defined in your shell startup file. Child shells don't inherit those, so a root shell from `su` or `sudo -i` needs the snippet in root's own startup file too. Without that, root simply keeps its default prompt. (The bash snippet un-exports `PS1`, so an old `export PS1=...` can't leak a prompt into shells that can't run it.)
 
-The snippet is wrapped in `# >>> prompt-generator >>>` markers so it is easy to find and replace later. It only defines the helpers the prompt uses.
+The snippet is wrapped in `# >>> command-prompt-gen >>>` markers so it is easy to find and replace later (snippets made before the rename use `# >>> prompt-generator >>>`; Import understands both). It only defines the helpers the prompt uses.
 
 ## Development
 

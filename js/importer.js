@@ -145,7 +145,7 @@
     this.buf = '';
     this.warnings = [];
     this.pendingFail = undefined; // zsh %(?.a.b): fail color for the next text run
-    this.fns = {};                // __pg_fN bodies from a Prompt Generator snippet
+    this.fns = {};                // __pg_fN bodies from a Command Prompt Gen snippet
     this.exitFail = null;         // failure SGR from __pg_exit_sgr, used by the next __pg_exit_text
   }
   Builder.prototype.styled = function (el) {
@@ -227,7 +227,7 @@
     b.field('cmd', { cmd: c, sample: '…' });
   }
 
-  /* Read the __pg_fN() { ... } helpers out of a Prompt Generator snippet (bash or zsh). */
+  /* Read the __pg_fN() { ... } helpers out of a Command Prompt Gen snippet (bash or zsh). */
   function generatedFunctions(text) {
     var fns = {}, re = /^(__pg_f\d+)\(\) \{ ([\s\S]*?); \}$/gm, m;
     while ((m = re.exec(String(text)))) {
@@ -247,7 +247,7 @@
     if (body == null) {
       if (!b.warnedGenerated) {
         b.warnedGenerated = true;
-        b.warnings.push('This prompt was made by Prompt Generator. Paste the whole snippet (or the downloaded file), not just $PS1, to restore its exit code, git and other dynamic fields.');
+        b.warnings.push('This prompt was made by Command Prompt Gen. Paste the whole snippet (or the downloaded file), not just $PS1, to restore its exit code, git and other dynamic fields.');
       }
       b.field('cmd', { cmd: name, sample: '' });
       return;
@@ -546,7 +546,7 @@
   }
 
   /* Public entry point. syntax: 'auto' | 'bash' | 'zsh'. */
-  /* Rebuild elements from a `# prompt-generator-design: {...}` comment. */
+  /* Rebuild elements from a `# command-prompt-gen-design: {...}` comment (older snippets: `prompt-generator-design:`). */
   function fromDesign(list) {
     return (Array.isArray(list) ? list : []).map(function (d) {
       if (!d || (d.kind !== 'text' && d.kind !== 'field' && d.kind !== 'newline')) return null;
@@ -559,7 +559,7 @@
 
   function importPrompt(input, syntax) {
     var text = String(input);
-    var design = text.match(/^[ \t]*#\s*prompt-generator-design:\s*(\{.*\})\s*$/m);
+    var design = text.match(/^[ \t]*#\s*(?:command-prompt-gen|prompt-generator)-design:\s*(\{.*\})\s*$/m);
     if (design) {
       try {
         var d = JSON.parse(design[1]);
@@ -574,7 +574,7 @@
     }
     var res = kind === 'zsh' ? parseZsh(value, fns) : parseBash(value, fns);
     res.syntax = kind;
-    // A whole Prompt Generator snippet also carries the right prompt.
+    // A whole Command Prompt Gen snippet also carries the right prompt.
     var rvalue = kind === 'zsh' ? assignment(text, 'RPROMPT') : assignment(text, '__pg_rps1');
     if (rvalue != null && /^[ \t]*(?:PS1|PROMPT)\s*=/m.test(text)) {
       var r = kind === 'zsh' ? parseZsh(rvalue, fns) : parseBash(rvalue, fns);

@@ -1,4 +1,4 @@
-/* Prompt Generator UI. */
+/* Command Prompt Gen UI. */
 (function (PG) {
   'use strict';
 
@@ -6,7 +6,8 @@
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
-  const STORE_KEY = 'prompt-generator:v1';
+  const STORE_KEY = 'command-prompt-gen:v1';
+  const OLD_STORE_KEY = 'prompt-generator:v1'; // before the rename; read once so saved work carries over
   const DEFAULT_TERM = { bg: '#0a0a0c', fg: '#d4d4d8' };
   const SWATCHES = ['#f4f4f5', '#a1a1aa', '#52525b', '#18181b', '#ef4444', '#f97316', '#facc15', '#a3e635',
     '#4ade80', '#2dd4bf', '#22d3ee', '#60a5fa', '#3b82f6', '#818cf8', '#a78bfa', '#c084fc', '#f472b6', '#fb7185'];
@@ -66,7 +67,7 @@
   }
 
   function load() {
-    const saved = storage((ls) => JSON.parse(ls.getItem(STORE_KEY) || 'null'));
+    const saved = storage((ls) => JSON.parse(ls.getItem(STORE_KEY) || ls.getItem(OLD_STORE_KEY) || 'null'));
     if (saved) {
       state.elements = M.reid(validElements(saved.elements));
       state.right = M.reid(validElements(saved.right));
@@ -883,7 +884,7 @@
     try { res = PG.importer.importPrompt(text, $('#import-syntax').value); } catch (e) { res = { elements: [], warnings: ['Could not parse: ' + e.message] }; }
     if (!res.elements.length) { msg.className = 'import-msg err'; msg.textContent = res.warnings.join(' ') || 'Nothing recognized.'; return; }
     if (Array.isArray(res.right)) {
-      // A whole Prompt Generator snippet: restore both sides.
+      // A whole Command Prompt Gen snippet: restore both sides.
       mutate(() => { state.elements = res.elements; state.right = res.right; ui.selected.clear(); });
       setSide('left');
     } else {

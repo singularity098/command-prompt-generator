@@ -1,5 +1,5 @@
 {
-  "name": "prompt-generator",
+  "name": "command-prompt-gen",
   "private": true,
   "description": "Browser-based visual builder for shell prompts. No dependencies; open index.html.",
   "scripts": {

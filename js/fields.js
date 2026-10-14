@@ -112,7 +112,7 @@
   /* ---------- Preview sample environment ---------- */
   var DEFAULT_SIM = {
     user: 'alice', host: 'devbox', domain: 'example.lan',
-    home: '/home/alice', cwd: '/home/alice/code/prompt-generator',
+    home: '/home/alice', cwd: '/home/alice/code/command-prompt-gen',
     inGit: true, branch: 'main', dirty: true,
     venv: false, venvName: 'venv', ssh: false, root: false,
     jobs: 1, history: 1042, tty: 'pts/0', duration: 4213
