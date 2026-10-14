@@ -836,7 +836,7 @@
     const blob = new Blob([currentCode()], { type: 'text/plain;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'prompt-' + state.shell + '.txt';
+    a.download = 'prompt-' + state.shell + '.env';
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
@@ -876,7 +876,36 @@
     openModal('#modal-presets');
   }
 
-  function doImport() {
+  /* Import from a file: only .txt and .env, and nothing unreasonably large. */
+  const IMPORT_EXTENSIONS = ['.txt', '.env'];
+  const IMPORT_MAX_BYTES = 1024 * 1024;
+  function importFile(file) {
+    const msg = $('#import-msg');
+    if (!file) return;
+    const name = file.name || '';
+    if (!IMPORT_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext))) {
+      msg.className = 'import-msg err';
+      msg.textContent = '“' + name + '” can’t be imported: only .txt and .env files are supported.';
+      return;
+    }
+    if (file.size > IMPORT_MAX_BYTES) {
+      msg.className = 'import-msg err';
+      msg.textContent = '“' + name + '” is too large (over 1 MB) to be a prompt.';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      $('#import-text').value = String(reader.result);
+      msg.className = 'import-msg';
+      msg.textContent = '';
+      doImport(name);
+    };
+    reader.onerror = () => { msg.className = 'import-msg err'; msg.textContent = 'Could not read “' + name + '”.'; };
+    reader.readAsText(file);
+  }
+
+  function doImport(fileName) {
+    if (typeof fileName !== 'string') fileName = '';
     const text = $('#import-text').value;
     const msg = $('#import-msg');
     if (!text.trim()) { msg.className = 'import-msg err'; msg.textContent = 'Paste a prompt first.'; return; }
@@ -895,7 +924,7 @@
     closeModal($('#modal-import'));
     const n = res.elements.length + (res.right ? res.right.length : 0);
     const how = res.exact ? 'Restored the exact design saved in the snippet' : 'Imported ' + n + ' elements as ' + (res.syntax === 'zsh' ? 'zsh' : 'bash');
-    toast(how + (res.warnings.length ? '. ' + res.warnings[0] : ''), 'Undo', undo, res.warnings.length ? 9000 : 0);
+    toast((fileName ? fileName + ': ' : '') + how + (res.warnings.length ? '. ' + res.warnings[0] : ''), 'Undo', undo, res.warnings.length ? 9000 : 0);
   }
 
   /* ---------------- toast ---------------- */
@@ -951,6 +980,25 @@
     $('#btn-import').addEventListener('click', () => { $('#import-msg').textContent = ''; openModal('#modal-import'); });
     $('#btn-do-import').addEventListener('click', doImport);
     $('#import-text').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) doImport(); });
+    $('#btn-import-file').addEventListener('click', () => $('#import-file').click());
+    $('#import-file').addEventListener('change', (e) => {
+      importFile(e.target.files[0]);
+      e.target.value = ''; // allow picking the same file again
+    });
+    // Files can be dropped anywhere on the import dialog (so a near miss doesn't open the file in the tab).
+    const box = $('#import-text'), dlg = $('#modal-import');
+    ['dragenter', 'dragover'].forEach((t) => dlg.addEventListener(t, (e) => {
+      if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return;
+      e.preventDefault();
+      box.classList.add('drop-hover');
+    }));
+    ['dragleave', 'dragend'].forEach((t) => dlg.addEventListener(t, (e) => { if (e.target === dlg || e.target === box) box.classList.remove('drop-hover'); }));
+    dlg.addEventListener('drop', (e) => {
+      if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+      e.preventDefault();
+      box.classList.remove('drop-hover');
+      importFile(e.dataTransfer.files[0]);
+    });
     $$('[data-example]').forEach((b) => b.addEventListener('click', () => { $('#import-text').value = EXAMPLES[b.dataset.example]; $('#import-msg').textContent = ''; }));
     $$('.modal').forEach((m) => {
       m.addEventListener('click', (e) => { if (e.target === m || e.target.closest('[data-close]')) closeModal(m); });

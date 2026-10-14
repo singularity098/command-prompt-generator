@@ -51,7 +51,8 @@ Everything is driven by one ordered list of **elements**:
 | Thorough choice of common fields | User, host, FQDN, `$`/`#`, SSH indicator, 4 directory styles, time, exit code, jobs, history, git branch, git dirty, venv/conda, shell name/version, TTY, any env var, any command (with Node, kube context and AWS profile shortcuts). |
 | Common special characters | Symbols tab: prompt arrows, punctuation, box drawing, Powerline/Nerd glyphs and emoji, plus custom text. |
 | Copy button | Copies the complete snippet (`navigator.clipboard`, with an `execCommand` fallback for `file://`). |
-| Export as text file | "Download .txt" saves `prompt-<shell>.txt`. |
+| Export as text file | "Download .env" saves `prompt-<shell>.env` (plain text). |
+| *(added)* Import from a file | "Choose file…" or drag-and-drop anywhere on the Import dialog. Only `.txt` and `.env` names are accepted (checked in code, not just the picker's filter), up to 1 MB; the file is read locally with `FileReader` and imported straight away, with Undo. A downloaded snippet re-imports exactly via its design line. |
 | About a dozen presets | 17 presets in `js/presets.js`, shown in a gallery that renders each one. |
 | *(added)* Right-side prompt | A Left/Right switch in the editor. Native `RPROMPT` (zsh) and `fish_right_prompt`; emulated in bash and PowerShell (see below). The preview pins it to the right edge of the input line. |
 | *(added)* Command duration | `duration` field with a threshold (seconds), auto or whole-seconds format, and before/after text. The preview shows a fast and a slow command. |

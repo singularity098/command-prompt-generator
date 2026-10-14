@@ -139,7 +139,7 @@
       <pre class="code" id="code" tabindex="0"></pre>
       <div class="row gap">
         <button class="btn primary" id="btn-copy"><span aria-hidden="true">⧉</span> Copy</button>
-        <button class="btn" id="btn-download"><span aria-hidden="true">⤓</span> Download .txt</button>
+        <button class="btn" id="btn-download"><span aria-hidden="true">⤓</span> Download .env</button>
       </div>
     </section>
   </main>
@@ -155,6 +155,11 @@
     <div class="modal-card">
       <div class="modal-head"><h2 id="import-title">Import a prompt</h2><button class="btn icon" data-close aria-label="Close">✕</button></div>
       <p class="muted">Paste a bash <code>PS1</code> or zsh <code>PROMPT</code>, with or without the <code>PS1=</code> part. A zsh <code>RPROMPT=…</code> goes into the right prompt. Tip: run <code>echo "$PS1"</code> in your shell to see your current one.</p>
+      <div class="file-row">
+        <button class="btn small" id="btn-import-file" type="button"><span aria-hidden="true">📄</span> Choose file…</button>
+        <input type="file" id="import-file" accept=".txt,.env,text/plain" hidden>
+        <span class="muted small">or drop a <code>.txt</code> / <code>.env</code> file on the box below — for example a snippet you downloaded.</span>
+      </div>
       <textarea id="import-text" class="input mono" rows="5" spellcheck="false" placeholder="PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '"></textarea>
       <div class="row gap wrap">
         <label class="muted small">Syntax

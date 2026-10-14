@@ -347,6 +347,8 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
 .preset-card .meta { padding: 10px 12px; }
 .preset-card .meta b { display: block; font-size: 13.5px; }
 .preset-card .meta span { color: var(--muted); font-size: 12px; }
+.file-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+#import-text.drop-hover { border-color: var(--accent); box-shadow: var(--focus); background: rgba(167, 139, 250, .06); }
 .import-msg { font-size: 12.5px; margin-top: 8px; min-height: 1em; }
 .import-msg.err { color: var(--danger); }
 .import-msg.ok { color: var(--ok); }
