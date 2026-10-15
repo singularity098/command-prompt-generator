@@ -1082,7 +1082,31 @@
     updateMeta();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  /* ---------------- installable app (PWA) ---------------- */
+  // Service workers only run over http(s); opening index.html from disk keeps working without one.
+  function setupPwa() {
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ });
+    }
+    let deferred = null;
+    const btn = $('#btn-install');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferred = e;
+      btn.hidden = false;
+    });
+    btn.addEventListener('click', async () => {
+      if (!deferred) return;
+      btn.hidden = true;
+      deferred.prompt();
+      try { await deferred.userChoice; } catch (e) { /* ignore */ }
+      deferred = null;
+    });
+    window.addEventListener('appinstalled', () => { btn.hidden = true; toast('Installed — find Command Prompt Generator with your apps'); });
+  }
+
+  function start() { init(); setupPwa(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 
   PG.app = { state, ui, undo, redo, addElements, select, currentCode };
 })(window.PG);

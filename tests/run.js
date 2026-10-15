@@ -362,6 +362,31 @@ if (has(PWSH)) {
   });
 } else { skipped++; console.log('  - skipped PowerShell parse check (pwsh not installed)'); }
 
+console.log('installable app (PWA)');
+test('service worker caches every file the page and manifest load, and they all exist', () => {
+  const root = path.join(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
+  const cached = JSON.parse(sw.match(/const APP_FILES = (\[[\s\S]*?\]);/)[1].replace(/'/g, '"'));
+  const local = Array.from(html.matchAll(/(?:src|href)="([^"#:]+)"/g)).map((m) => m[1]);
+  manifest.icons.forEach((i) => local.push(i.src));
+  for (const f of local) assert.ok(cached.includes(f), f + ' is loaded but not in sw.js APP_FILES');
+  for (const f of cached) if (f !== './') assert.ok(fs.existsSync(path.join(root, f)), f + ' is in APP_FILES but missing');
+  assert.strictEqual(manifest.start_url, './');
+  assert.ok(manifest.icons.some((i) => i.purpose === 'maskable'), 'needs a maskable icon');
+  assert.ok(['192x192', '512x512'].every((size) => manifest.icons.some((i) => i.sizes === size && i.type === 'image/png')), 'needs 192 and 512 PNG icons');
+});
+test('the Pages deploy publishes every cached file', () => {
+  const root = path.join(__dirname, '..');
+  const cp = fs.readFileSync(path.join(root, '.github/workflows/pages.yml'), 'utf8').match(/cp -r ([^\n]+) _site\//)[1].split(/\s+/);
+  const cached = JSON.parse(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const APP_FILES = (\[[\s\S]*?\]);/)[1].replace(/'/g, '"'));
+  for (const f of cached.concat(['sw.js'])) {
+    if (f === './') continue;
+    assert.ok(cp.some((entry) => f === entry || f.startsWith(entry + '/')), f + ' is not copied by pages.yml');
+  }
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log('\n' + passed + ' passed, ' + failed + ' failed' + (skipped ? ', ' + skipped + ' skipped' : ''));
 process.exit(failed ? 1 : 0);

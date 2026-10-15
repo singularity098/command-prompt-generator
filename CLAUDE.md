@@ -16,6 +16,9 @@ Guidance for Claude (and other contributors) working on **Command Prompt Generat
 
 ```
 index.html        page shell (header, palette, editor, preview, inspector, output, modals)
+manifest.webmanifest  PWA manifest (relative start_url/scope for the Pages subpath)
+sw.js             service worker: precache APP_FILES, network first with cache fallback
+icons/            app icons; icon.svg and icon-maskable.svg are the masters, PNGs are rendered from them
 css/style.css     all styles
 js/color.js       color math: HSL/OKLab, hue/saturation/brightness, gradients, 256/16-color quantization
 js/fields.js      element model (PG.model), field catalogue + preview samples, palette, symbols, strftime
@@ -62,6 +65,14 @@ For UI changes, also drive the page with the preinstalled Playwright/Chromium (o
 - **Saved browser work:** `localStorage` key `command-prompt-generator:v1`. The older keys `command-prompt-gen:v1` and `prompt-generator:v1` are still read. Share links encode the design in `#p=...`.
 - **Snippet markers:** `# >>> command-prompt-generator (<shell>) >>>` … `# <<< ... <<<`.
 
+## Installable app (PWA)
+
+- **When you add a file the page loads** (script, stylesheet, icon), add it to `APP_FILES` in `sw.js` **and** to the `cp -r` list in `.github/workflows/pages.yml`. The PWA tests in `tests/run.js` fail if either is missing.
+- The service worker is network first, so deploys show up without bumping anything. Bump `CACHE` in `sw.js` only when changing the caching strategy itself (old caches are deleted on activate).
+- The service worker is registered only over http(s) (`setupPwa()` in `app.js`), so `file://` keeps working. Keep it that way.
+- Icons: edit the SVG masters, then re-render the PNGs (192, 512, maskable 512 and the 180 `apple-touch-icon`) with Playwright/Chromium and commit them. There is no build step.
+- To check installability, serve the site over HTTP from a subfolder, open it in Chromium, and use CDP `Page.getInstallabilityErrors` (should be `[]`); then `context.setOffline(true)` and reload.
+
 ## UI behaviors worth knowing
 
 - Hue, saturation and brightness sliders share one snapshot taken on the first move. They're relative, combine in any order, and 0/0/0 or Reset restores the original colors. Any other edit or selection change drops the snapshot.
@@ -73,6 +84,6 @@ For UI changes, also drive the page with the preinstalled Playwright/Chromium (o
 ## Workflow
 
 - The owner works directly on `main`: make the change, run `node tests/run.js` (plus a browser check for UI work), commit, push.
-- CI (`test.yml`) runs the suite with bash, zsh, fish and PowerShell. `pages.yml` deploys `index.html`, `css/`, `js/` and `LICENSE` to GitHub Pages after `test` passes on `main`, or on manual dispatch.
+- CI (`test.yml`) runs the suite with bash, zsh, fish and PowerShell. `pages.yml` deploys `index.html`, `manifest.webmanifest`, `sw.js`, `css/`, `js/`, `icons/` and `LICENSE` to GitHub Pages after `test` passes on `main`, or on manual dispatch.
 - After pushing, confirm CI (and the Pages deploy) went green.
 - License: MIT.

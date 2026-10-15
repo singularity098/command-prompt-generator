@@ -4,7 +4,7 @@ A visual builder for shell prompts that runs in the browser. Drag fields and sym
 
 It has no dependencies, no build step and no server. Open `index.html` in any modern desktop or mobile browser.
 
-**Live app:** https://singularity098.github.io/command-prompt-generator/ (published by GitHub Pages after the tests pass on `main`).
+**Live app:** https://singularity098.github.io/command-prompt-generator/ (published by GitHub Pages after the tests pass on `main`). It can be installed as an app and works offline; see [Installing as an app](#installing-as-an-app).
 
 ![Command Prompt Generator on desktop](docs/screenshots/desktop.png)
 
@@ -33,6 +33,16 @@ It has no dependencies, no build step and no server. Open `index.html` in any mo
 - **17 presets.** Debian, Fedora, Kali, Robby Russell, Pure, Agnoster, Starship-style, Dracula, Nord, Gruvbox, a two-sided prompt, and more.
 - **Extras.** Undo/redo, keyboard shortcuts, share links (the prompt is encoded in the URL), dark theme by default with a light theme, and autosave in the browser.
 
+## Installing as an app
+
+The live site is a Progressive Web App: install it and it opens in its own window and works offline.
+
+- **Chrome / Edge (desktop or Android):** click **Install** in the app's header (or the install icon in the address bar).
+- **Safari on iPhone / iPad:** Share → **Add to Home Screen**.
+- **Safari on macOS:** File → **Add to Dock**.
+
+The app always loads the latest version when you're online and falls back to its cached copy offline. Saved work stays in that browser (or installed app) only. Opening `index.html` straight from disk still works too, just without offline caching.
+
 ## Using the generated prompt
 
 | Shell | Where it goes |
@@ -48,7 +58,7 @@ The snippet is wrapped in `# >>> command-prompt-generator >>>` markers so it is 
 
 ## Publishing (GitHub Pages)
 
-`.github/workflows/pages.yml` deploys the app (`index.html`, `css/`, `js/`, `LICENSE`) to GitHub Pages whenever the `test` workflow passes on `main`, and can also be run by hand from the Actions tab. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions**. Pages for a private repository needs a paid GitHub plan, and the published site is public.
+`.github/workflows/pages.yml` deploys the app (`index.html`, `manifest.webmanifest`, `sw.js`, `css/`, `js/`, `icons/`, `LICENSE`) to GitHub Pages whenever the `test` workflow passes on `main`, and can also be run by hand from the Actions tab. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions**. Pages for a private repository needs a paid GitHub plan, and the published site is public.
 
 ## Development
 
