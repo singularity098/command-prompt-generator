@@ -285,6 +285,12 @@ if (shells.length) {
   });
 }
 
+test('the default Void preset is first and still produces the owner\'s exact bash PS1', () => {
+  assert.strictEqual(PG.presets[0].name, 'Void');
+  const ps1 = PG.gen.generate('bash', PG.presets[0].build()).split('\n').find((l) => l.startsWith('PS1='));
+  assert.strictEqual(ps1, "PS1='\\[\\e[0;38;2;102;102;102m\\]\\D{%I:%M:%S} (\\[$(__pg_f1)\\]$(__pg_f2)\\[\\e[0;38;2;102;102;102m\\])\\[\\e[0m\\] \\[\\e[0;38;2;95;135;255m\\]\\u\\[\\e[0;38;2;102;102;102m\\]@\\[\\e[0;38;2;135;135;255m\\]\\h\\[\\e[0m\\] \\[\\e[0;38;2;95;135;255m\\]\\w\\[\\e[0m\\] \\[\\e[0;38;2;0;135;255m\\]\\$\\[\\e[0m\\] '");
+});
+
 console.log('round-trip import');
 const noDesign = (code) => code.split('\n').filter((l) => !l.includes(PG.gen.DESIGN_TAG)).join('\n');
 const bare = (list) => JSON.stringify((list || []).map((e) => { const c = Object.assign({}, e); delete c.id; return c; }));

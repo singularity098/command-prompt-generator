@@ -79,6 +79,7 @@ For UI changes, also drive the page with the preinstalled Playwright/Chromium (o
 - Keyboard shortcuts skip text inputs. Undo/redo still work while a slider, checkbox or button has focus, but editor keys (arrows, Delete) do not.
 - The terminal preview follows the shell's default colors until the user picks their own: near-black, or classic Windows PowerShell blue `#012456`/`#eeedf0` for PowerShell.
 - Import accepts pasted text or `.txt`/`.env` files up to 1 MB (extension checked in code). Download saves `prompt-<shell>.env`.
+- A first visit (no saved work, no share link) starts with the **Void** preset, set by `DEFAULT_PRESET` in `app.js`. It is the owner's own prompt; keep it first in `js/presets.js` and don't restyle it.
 - Inspector for the exit code lists success colors first, then failure colors. Labels follow the pattern "Text color (success)".
 
 ## Workflow

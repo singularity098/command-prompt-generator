@@ -12,6 +12,20 @@
   var PL = ''; // powerline right arrow
   var PRESETS = [
     {
+      // The app's default prompt for a first visit (see DEFAULT_PRESET in app.js).
+      name: 'Void',
+      desc: 'Muted clock and exit code, then user@host and path in shades of blue.',
+      build: function () {
+        var g = { fg: '#666666' };
+        return [
+          F('time', g, { fmt: '%I:%M:%S' }), T(' (', g),
+          F('exit', g, { tpl: '{code}', hideOk: false, failFg: '#ff5555', failBg: null }), T(')', g), T(' '),
+          F('user', { fg: '#5f87ff' }), T('@', g), F('host', { fg: '#8787ff' }), T(' '),
+          F('cwd', { fg: '#5f87ff' }), T(' '), F('promptChar', { fg: '#0087ff' }), T(' ')
+        ];
+      }
+    },
+    {
       name: 'Debian Classic',
       desc: 'The familiar green user@host and blue path from Debian/Ubuntu.',
       build: function () {

@@ -54,7 +54,7 @@ Everything is driven by one ordered list of **elements**:
 | Copy button | Copies the complete snippet (`navigator.clipboard`, with an `execCommand` fallback for `file://`). |
 | Export as text file | "Download .env" saves `prompt-<shell>.env` (plain text). |
 | *(added)* Import from a file | "Choose file…" or drag-and-drop anywhere on the Import dialog. Only `.txt` and `.env` names are accepted (checked in code, not just the picker's filter), up to 1 MB; the file is read locally with `FileReader` and imported straight away, with Undo. A downloaded snippet re-imports exactly via its design line. |
-| About a dozen presets | 17 presets in `js/presets.js`, shown in a gallery that renders each one. |
+| About a dozen presets | 18 presets in `js/presets.js`, shown in a gallery that renders each one. A first visit starts with **Void** (`DEFAULT_PRESET` in `app.js`). |
 | *(added)* Right-side prompt | A Left/Right switch in the editor. Native `RPROMPT` (zsh) and `fish_right_prompt`; emulated in bash and PowerShell (see below). The preview pins it to the right edge of the input line. |
 | *(added)* Command duration | `duration` field with a threshold (seconds), auto or whole-seconds format, and before/after text. The preview shows a fast and a slow command. |
 

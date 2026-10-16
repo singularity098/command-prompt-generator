@@ -9,6 +9,7 @@
   const STORE_KEY = 'command-prompt-generator:v1';
   const OLD_STORE_KEYS = ['command-prompt-gen:v1', 'prompt-generator:v1']; // earlier names; read so saved work carries over
   const DEFAULT_TERM = { bg: '#0a0a0c', fg: '#d4d4d8' };
+  const DEFAULT_PRESET = 'Void'; // what a first visit (no saved work, no share link) starts with
   // Default preview colors per shell; PowerShell gets the classic Windows PowerShell console blue.
   const SHELL_TERM = { pwsh: { bg: '#012456', fg: '#eeedf0' } };
   function termDefaults(shell) { return Object.assign({}, SHELL_TERM[shell] || DEFAULT_TERM); }
@@ -85,7 +86,7 @@
       if (saved.theme) state.theme = saved.theme;
       if (saved.grad && Array.isArray(saved.grad.stops)) Object.assign(state.grad, saved.grad);
     } else {
-      const p = PG.presets.find((x) => x.name === 'Starship Style') || PG.presets[0];
+      const p = PG.presets.find((x) => x.name === DEFAULT_PRESET) || PG.presets[0];
       const parts = presetParts(p);
       state.elements = M.reid(parts.left);
       state.right = M.reid(parts.right);
