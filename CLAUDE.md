@@ -70,6 +70,7 @@ For UI changes, also drive the page with the preinstalled Playwright/Chromium (o
 - **When you add a file the page loads** (script, stylesheet, icon), add it to `APP_FILES` in `sw.js` **and** to the `cp -r` list in `.github/workflows/pages.yml`. The PWA tests in `tests/run.js` fail if either is missing.
 - The service worker is network first, so deploys show up without bumping anything. Bump `CACHE` in `sw.js` only when changing the caching strategy itself (old caches are deleted on activate).
 - The service worker is registered only over http(s) (`setupPwa()` in `app.js`), so `file://` keeps working. Keep it that way.
+- The **Install** button shows whenever installing is possible (http(s), not already standalone). Don't make it depend on `beforeinstallprompt` alone: Brave, Safari, Firefox and iOS never fire it, so without the native prompt the button opens per-browser steps (`installHelp()`).
 - Icons: edit the SVG masters, then re-render the PNGs (192, 512, maskable 512 and the 180 `apple-touch-icon`) with Playwright/Chromium and commit them. There is no build step.
 - To check installability, serve the site over HTTP from a subfolder, open it in Chromium, and use CDP `Page.getInstallabilityErrors` (should be `[]`); then `context.setOffline(true)` and reload.
 

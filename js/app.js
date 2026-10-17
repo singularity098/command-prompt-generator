@@ -1091,19 +1091,51 @@
     }
     let deferred = null;
     const btn = $('#btn-install');
+    // Show Install whenever the app can be installed from here (served over http(s), not already
+    // running as the installed app). Browsers that never fire beforeinstallprompt (Brave, Safari,
+    // Firefox, iOS) get instructions instead of a silent no-op.
+    const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    btn.hidden = !/^https?:$/.test(location.protocol) || standalone();
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferred = e;
       btn.hidden = false;
     });
     btn.addEventListener('click', async () => {
-      if (!deferred) return;
-      btn.hidden = true;
-      deferred.prompt();
-      try { await deferred.userChoice; } catch (e) { /* ignore */ }
+      if (!deferred) { showInstallHelp(); return; }
+      const ev = deferred;
       deferred = null;
+      ev.prompt();
+      try { await ev.userChoice; } catch (e) { /* ignore */ }
     });
     window.addEventListener('appinstalled', () => { btn.hidden = true; toast('Installed — find Command Prompt Generator with your apps'); });
+  }
+
+  /* Browser-specific install steps for when there's no native prompt to show. */
+  function installHelp() {
+    const ua = navigator.userAgent;
+    const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const android = /Android/.test(ua);
+    const k = (t) => '<kbd>' + esc(t) + '</kbd>';
+    if (ios) return '<p>In Safari, tap ' + k('Share') + ' (the square with an arrow), then ' + k('Add to Home Screen') + '.</p><p class="muted small">On iPhone and iPad, other browsers use Safari\'s engine; if there\'s no Add to Home Screen option, open this page in Safari.</p>';
+    if (/Firefox\//.test(ua)) {
+      return android
+        ? '<p>Open the menu ' + k('⋮') + ' and choose ' + k('Install') + ' or ' + k('Add to Home screen') + '.</p>'
+        : '<p>Firefox on desktop can\'t install web apps. Open this page in Chrome, Edge or Brave to install it, or bookmark it: it keeps working offline once you\'ve visited.</p>';
+    }
+    if (navigator.brave) {
+      return '<p>Open Brave\'s menu ' + k('☰') + ' (top right) and choose ' + k('Save and share') + ' → ' + k('Install page as app…') + '.</p>' +
+        '<p class="muted small">The wording varies between Brave versions: look for an “Install…” entry in the menu, or an install icon at the right end of the address bar.</p>';
+    }
+    if (/Edg\//.test(ua)) return '<p>Open the menu ' + k('…') + ' and choose ' + k('Apps') + ' → ' + k('Install this site as an app') + ', or click the install icon at the right end of the address bar.</p>';
+    if (/Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg/.test(ua)) return '<p>In Safari, choose ' + k('File') + ' → ' + k('Add to Dock') + ' (macOS Sonoma or later).</p>';
+    if (android) return '<p>Open the menu ' + k('⋮') + ' and choose ' + k('Install app') + ' or ' + k('Add to Home screen') + '.</p>';
+    return '<p>Click the install icon at the right end of the address bar, or open the menu ' + k('⋮') + ' and choose ' + k('Cast, save, and share') + ' → ' + k('Install page as app…') + '.</p>' +
+      '<p class="muted small">If there\'s no install option, the app may already be installed: check your apps.</p>';
+  }
+  function showInstallHelp() {
+    $('#install-steps').innerHTML = installHelp();
+    openModal('#modal-install');
   }
 
   function start() { init(); setupPwa(); }

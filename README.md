@@ -37,7 +37,9 @@ It has no dependencies, no build step and no server. Open `index.html` in any mo
 
 The live site is a Progressive Web App: install it and it opens in its own window and works offline.
 
-- **Chrome / Edge (desktop or Android):** click **Install** in the app's header (or the install icon in the address bar).
+- **Any browser:** click **Install** in the app's header. Where the browser offers its own install prompt (Chrome, Edge, Android) you get that; otherwise (Brave, Safari, Firefox, iPhone/iPad) it shows the steps for your browser.
+- **Chrome / Edge (desktop or Android):** or use the install icon in the address bar.
+- **Brave (desktop):** menu ☰ → **Save and share** → **Install page as app…** (wording varies by version).
 - **Safari on iPhone / iPad:** Share → **Add to Home Screen**.
 - **Safari on macOS:** File → **Add to Dock**.
 
