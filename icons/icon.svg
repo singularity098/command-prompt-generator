@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1b1f2c"/>
-      <stop offset="1" stop-color="#0d0f15"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <path d="M136 168l96 88-96 88" stroke="#a78bfa" stroke-width="44" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M272 344h104" stroke="#22d3ee" stroke-width="44" stroke-linecap="round"/>
+  <!-- Pixel prompt: a chevron fading violet to cyan, then a cursor. -->
+  <rect width="512" height="512" rx="112" fill="#161a24"/>
+  <g transform="translate(256 256) scale(1.15) translate(-256 -256)">
+    <rect x="118" y="158" width="36" height="36" rx="4" fill="#c084fc"/><rect x="158" y="158" width="36" height="36" rx="4" fill="#c084fc"/>
+    <rect x="158" y="198" width="36" height="36" rx="4" fill="#a78bfa"/><rect x="198" y="198" width="36" height="36" rx="4" fill="#a78bfa"/>
+    <rect x="198" y="238" width="36" height="36" rx="4" fill="#818cf8"/><rect x="238" y="238" width="36" height="36" rx="4" fill="#818cf8"/>
+    <rect x="158" y="278" width="36" height="36" rx="4" fill="#60a5fa"/><rect x="198" y="278" width="36" height="36" rx="4" fill="#60a5fa"/>
+    <rect x="118" y="318" width="36" height="36" rx="4" fill="#38bdf8"/><rect x="158" y="318" width="36" height="36" rx="4" fill="#38bdf8"/>
+    <rect x="278" y="318" width="36" height="36" rx="4" fill="#22d3ee"/><rect x="318" y="318" width="36" height="36" rx="4" fill="#22d3ee"/><rect x="358" y="318" width="36" height="36" rx="4" fill="#22d3ee"/>
+  </g>
 </svg>
