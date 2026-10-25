@@ -1,4 +1,9 @@
-# Command Prompt Generator
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/logo/logo-light.svg">
+    <img src="docs/logo/logo-dark.svg" alt="Command Prompt Generator" width="344">
+  </picture>
+</h1>
 
 A visual builder for shell prompts that runs in the browser. Drag fields and symbols into an editor, style each one, watch it in a live terminal preview, then copy the code for **bash**, **zsh**, **fish** or **PowerShell**.
 
