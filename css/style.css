@@ -119,10 +119,10 @@ input[type="color"]::-moz-color-swatch { border: 1px solid var(--border-strong);
   border-bottom: 1px solid var(--border);
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -.01em; }
-.brand-mark {
-  font-family: var(--mono); font-size: 14px; padding: 5px 8px; border-radius: 9px; color: #fff;
-  background: linear-gradient(135deg, var(--accent-strong), #06b6d4);
-}
+.brand-mark { width: 32px; height: 32px; flex: none; display: block; }
+.brand-name { height: 34px; width: auto; display: block; }
+.brand-name .wm-name { fill: var(--text); }
+.brand-name .wm-sub { fill: var(--accent); }
 .top-actions { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
 
 /* ---------- layout ---------- */
