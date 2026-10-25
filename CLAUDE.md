@@ -30,6 +30,7 @@ js/app.js         UI: state, undo/redo, rendering, drag and drop, inspector, imp
 tests/load.js     loads the browser scripts into Node
 tests/run.js      the test suite
 docs/DESIGN.md    design doc and requirement mapping
+docs/logo/        README logo lockups (dark and light)
 .github/workflows test.yml (CI) and pages.yml (deploy)
 ```
 
@@ -72,7 +73,7 @@ For UI changes, also drive the page with the preinstalled Playwright/Chromium (o
 - The service worker is registered only over http(s) (`setupPwa()` in `app.js`), so `file://` keeps working. Keep it that way.
 - The **Install** button shows whenever installing is possible (http(s), not already standalone). Don't make it depend on `beforeinstallprompt` alone: Brave, Safari, Firefox and iOS never fire it, so without the native prompt the button opens per-browser steps (`installHelp()`).
 - Icons: edit the SVG masters, then re-render the PNGs (192, 512, maskable 512 and the 180 `apple-touch-icon`) with Playwright/Chromium and commit them. There is no build step.
-- **Logo:** the icon is a pixel chevron plus cursor (violet to cyan) on `#161a24`; the same artwork is inlined as the header `.brand-mark` and, with square pixels, as the favicon data URI in `index.html`. The header wordmark (`.brand-name`) is "Command Prompt" in Space Grotesk Bold over "GENERATOR" in JetBrains Mono Medium, both OFL, **outlined to SVG paths** so no web font is loaded. Its colors come from `--text` and `--accent`. To change the lettering, re-outline it (for example fontTools + HarfBuzz) rather than switching to a `<text>` element or a font file.
+- **Logo:** the icon is a pixel chevron plus cursor (violet to cyan) on `#161a24`; the same artwork is inlined as the header `.brand-mark` and, with square pixels, as the favicon data URI in `index.html`. The header wordmark (`.brand-name`) is "Command Prompt" in Space Grotesk Bold over "GENERATOR" in JetBrains Mono Medium, both OFL, **outlined to SVG paths** so no web font is loaded. Its colors come from `--text` and `--accent`. To change the lettering, re-outline it (for example fontTools + HarfBuzz) rather than switching to a `<text>` element or a font file. The README header uses `docs/logo/logo-dark.svg` and `logo-light.svg` (mark plus wordmark, colors hard-coded from the two themes, chosen with `<picture>`); regenerate them from `index.html` when the logo changes.
 - To check installability, serve the site over HTTP from a subfolder, open it in Chromium, and use CDP `Page.getInstallabilityErrors` (should be `[]`); then `context.setOffline(true)` and reload.
 
 ## UI behaviors worth knowing
